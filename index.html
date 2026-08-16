@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>.NET Quiz Application</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; color: #1a202c; min-height: 100vh; }
+
+  /* STATUS BAR */
+  #statusBar { background: #2b6cb0; color: #fff; padding: 10px 20px; display: flex; gap: 24px; align-items: center; font-size: 14px; font-weight: 600; }
+  .stat-item { display: flex; align-items: center; gap: 6px; }
+  .stat-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-green { background: #68d391; }
+  .dot-red { background: #fc8181; }
+  .dot-blue { background: #90cdf4; }
+  #statusBar span { font-weight: 400; }
+
+  /* SCREENS */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* HOME */
+  #homeScreen { max-width: 520px; margin: 60px auto; padding: 20px; }
+  .home-card { background: #fff; border-radius: 12px; padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); text-align: center; }
+  .home-card h1 { font-size: 26px; color: #2b6cb0; margin-bottom: 8px; }
+  .home-card p { color: #718096; margin-bottom: 32px; font-size: 15px; }
+  .mode-buttons { display: flex; gap: 16px; margin-bottom: 28px; }
+  .mode-btn { flex: 1; padding: 14px; border: 2px solid #cbd5e0; border-radius: 8px; background: #fff; cursor: pointer; font-size: 15px; font-weight: 600; color: #4a5568; transition: all 0.2s; }
+  .mode-btn.selected { border-color: #2b6cb0; background: #ebf4ff; color: #2b6cb0; }
+  .mode-btn:hover { border-color: #2b6cb0; }
+  .start-btn { width: 100%; padding: 14px; background: #2b6cb0; color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+  .start-btn:hover { background: #2c5282; }
+  .total-count { color: #718096; font-size: 13px; margin-top: 16px; }
+
+  /* QUIZ */
+  #quizScreen { max-width: 700px; margin: 24px auto; padding: 20px; }
+  .quiz-header { background: #fff; border-radius: 10px; padding: 14px 20px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .q-counter { font-size: 15px; font-weight: 700; color: #2b6cb0; }
+  .progress-bar-wrap { flex: 1; margin: 0 20px; background: #e2e8f0; border-radius: 99px; height: 8px; }
+  .progress-bar-fill { height: 100%; background: #2b6cb0; border-radius: 99px; transition: width 0.3s; }
+  .category-tag { font-size: 12px; background: #ebf4ff; color: #2b6cb0; padding: 3px 10px; border-radius: 99px; font-weight: 600; }
+
+  .question-card { background: #fff; border-radius: 10px; padding: 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 16px; }
+  .q-text { font-size: 16px; line-height: 1.6; font-weight: 600; color: #1a202c; margin-bottom: 24px; white-space: pre-wrap; }
+
+  .options-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .option-item label { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: all 0.15s; font-size: 15px; line-height: 1.5; }
+  .option-item label:hover { border-color: #90cdf4; background: #f7fafc; }
+  .option-item input[type=radio] { margin-top: 3px; flex-shrink: 0; accent-color: #2b6cb0; width: 16px; height: 16px; }
+  .option-item.correct label { border-color: #38a169; background: #f0fff4; color: #276749; font-weight: 600; }
+  .option-item.incorrect label { border-color: #e53e3e; background: #fff5f5; color: #c53030; }
+  .option-item.disabled label { cursor: default; }
+
+  .feedback-msg { margin-top: 14px; padding: 10px 14px; border-radius: 8px; font-size: 14px; font-weight: 600; }
+  .feedback-correct { background: #f0fff4; color: #276749; border: 1px solid #68d391; }
+  .feedback-incorrect { background: #fff5f5; color: #c53030; border: 1px solid #fc8181; }
+
+  .nav-buttons { display: flex; gap: 12px; justify-content: space-between; }
+  .nav-btn { padding: 11px 24px; border-radius: 8px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .btn-prev { background: #e2e8f0; color: #4a5568; }
+  .btn-prev:hover { background: #cbd5e0; }
+  .btn-next { background: #2b6cb0; color: #fff; }
+  .btn-next:hover { background: #2c5282; }
+  .btn-submit { background: #38a169; color: #fff; }
+  .btn-submit:hover { background: #276749; }
+  .btn-stop { background: #e53e3e; color: #fff; }
+  .btn-stop:hover { background: #c53030; }
+  .btn-disabled { opacity: 0.4; cursor: default !important; }
+
+  /* CONFIRM DIALOG */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 999; }
+  .confirm-box { background: #fff; border-radius: 12px; padding: 32px 28px; max-width: 360px; width: 90%; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+  .confirm-box h3 { font-size: 18px; color: #1a202c; margin-bottom: 10px; }
+  .confirm-box p { color: #718096; font-size: 14px; margin-bottom: 24px; line-height: 1.5; }
+  .confirm-actions { display: flex; gap: 12px; justify-content: center; }
+  .confirm-actions button { padding: 10px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .btn-confirm-yes { background: #e53e3e; color: #fff; }
+  .btn-confirm-yes:hover { background: #c53030; }
+  .btn-confirm-yes-green { background: #38a169; color: #fff; }
+  .btn-confirm-yes-green:hover { background: #276749; }
+  .btn-confirm-no { background: #e2e8f0; color: #4a5568; }
+  .btn-confirm-no:hover { background: #cbd5e0; }
+
+  /* RESULTS */
+  #resultScreen { max-width: 540px; margin: 40px auto; padding: 20px; }
+  .result-card { background: #fff; border-radius: 12px; padding: 36px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); text-align: center; }
+  .result-card h2 { font-size: 24px; color: #2b6cb0; margin-bottom: 28px; }
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 28px; }
+  .result-item { background: #f7fafc; border-radius: 8px; padding: 16px; }
+  .result-item .label { font-size: 12px; color: #718096; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .result-item .value { font-size: 28px; font-weight: 700; color: #1a202c; }
+  .result-item.highlight { background: #ebf4ff; }
+  .result-item.highlight .value { color: #2b6cb0; }
+  .result-item.green .value { color: #38a169; }
+  .result-item.red .value { color: #e53e3e; }
+  .pct-circle { width: 100px; height: 100px; border-radius: 50%; background: conic-gradient(#2b6cb0 var(--pct), #e2e8f0 0); display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; position: relative; }
+  .pct-inner { width: 76px; height: 76px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; color: #2b6cb0; }
+  .btn-home { margin-top: 8px; padding: 12px 32px; background: #2b6cb0; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; }
+  .btn-home:hover { background: #2c5282; }
+
+/* Added from the level/review quiz logic */
+.level-screen-wrap{max-width:760px;margin:40px auto;padding:20px;}
+.level-card{background:#fff;border-radius:12px;padding:30px;box-shadow:0 4px 20px rgba(0,0,0,.1);}
+.level-card h2{font-size:24px;color:#2b6cb0;margin-bottom:8px;}
+.level-subtitle{color:#718096;margin-bottom:22px;line-height:1.5;}
+.level-item{display:flex;justify-content:space-between;align-items:center;padding:15px 18px;border-radius:9px;background:#f7fafc;margin-bottom:10px;border:2px solid #e2e8f0;}
+.level-item.locked{opacity:.5}.level-item.passed{border-color:#38a169}.level-item.failed{border-color:#e53e3e}.level-item.current{border-color:#2b6cb0;box-shadow:0 0 0 3px #ebf4ff;}
+.level-main{font-weight:700}.level-sub{font-size:12px;color:#718096;margin-top:3px;}
+.level-badge{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800;}
+.level-badge.passed{background:#f0fff4;color:#276749}.level-badge.failed{background:#fff5f5;color:#c53030}.level-badge.locked{background:#eee;color:#888}.level-badge.current{background:#ebf4ff;color:#2b6cb0;}
+.review-item{padding:17px 18px;border-radius:9px;background:#f7fafc;margin-bottom:13px;border:2px solid #e2e8f0;}
+.review-item.wrong{border-color:#e53e3e}.review-item.right{border-color:#38a169}.review-item.unanswered{border-color:#cbd5e0;}
+.review-q{font-size:15.5px;line-height:1.6;font-weight:600;margin:10px 0;}
+.review-answer{font-size:14px;margin-top:8px;}
+mark.hl-yellow{background:#ffe066;padding:2px 4px;border-radius:4px;color:#5c4400;font-weight:800;}
+.result-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:20px;}
+
+</style>
+</head>
+<body>
+
+<div id="statusBar" style="display:none"></div>
+
+<!-- HOME SCREEN -->
+<div id="homeScreen" class="screen active">
+  <div class="home-card">
+    <h1>&#x1F4BB; .NET Quiz</h1>
+    <p>Test your knowledge of .NET, C#, ASP.NET, ADO.NET, SQL Server & more</p>
+    <div class="mode-buttons">
+      <button class="mode-btn selected" id="btnPractice" onclick="selectMode('practice')">&#x1F4D6; Practice Mode</button>
+      <button class="mode-btn" id="btnExam" onclick="selectMode('exam')">&#x1F4DD; Exam Mode</button>
+    </div>
+    <button class="start-btn" onclick="goHome()">Start Quiz</button>
+    <p class="total-count" id="totalCount"></p>
+  </div>
+</div>
+
+<!-- QUIZ SCREEN -->
+<div id="quizScreen" class="screen">
+  <div class="quiz-header">
+    <span class="q-counter" id="qCounter"></span>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar"></div></div>
+    <span class="category-tag" id="categoryTag"></span>
+    <button class="nav-btn btn-stop" style="padding:7px 14px;font-size:13px;" onclick="confirmStop()">&#x2715; Stop</button>
+  </div>
+  <div class="question-card">
+    <div class="q-text" id="qText"></div>
+    <ul class="options-list" id="optionsList"></ul>
+    <div id="feedbackMsg"></div>
+  </div>
+  <div class="nav-buttons">
+    <button class="nav-btn btn-prev" id="btnPrev" onclick="navigate(-1)">&#8592; Previous</button>
+    <button class="nav-btn btn-next" id="btnNext" onclick="navigate(1)">Next &#8594;</button>
+    <button class="nav-btn btn-submit" id="btnSubmit" onclick="confirmSubmit()">&#x2713; Submit</button>
+  </div>
+
+  <!-- Confirm dialogs -->
+  <div class="overlay" id="overlayStop" style="display:none">
+    <div class="confirm-box">
+      <h3>&#x26A0;&#xFE0F; Stop Test?</h3>
+      <p>Are you sure you want to stop the test and go back to the home screen? Your progress will be lost.</p>
+      <div class="confirm-actions">
+        <button class="btn-confirm-yes" onclick="doStop()">Yes, Stop</button>
+        <button class="btn-confirm-no" onclick="closeOverlay('overlayStop')">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <div class="overlay" id="overlaySubmit" style="display:none">
+    <div class="confirm-box">
+      <h3>&#x1F4CB; Submit Quiz?</h3>
+      <p id="submitMsg"></p>
+      <div class="confirm-actions">
+        <button class="btn-confirm-yes-green" onclick="doSubmit()">Yes, Submit</button>
+        <button class="btn-confirm-no" onclick="closeOverlay('overlaySubmit')">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULT SCREEN -->
+<div id="resultScreen" class="screen">
+  <div class="result-card">
+    <h2>&#x1F3C6; Quiz Results</h2>
+    <div class="pct-circle" id="pctCircle"><div class="pct-inner" id="pctText"></div></div>
+    <div class="result-grid" id="resultGrid"></div>
+    <button class="btn-home" onclick="goHome()">&#8592; Back to Home</button>
+  </div>
+</div>
+
+
+<!-- LEVEL HOME -->
+<div id="levelHomeScreen" class="screen">
+  <div class="level-screen-wrap">
+    <div class="level-card">
+      <h2>💻 .NET Quiz Levels</h2>
+      <p class="level-subtitle">Level 1 starts with 15 questions. Level 2 has 30, then every level adds 10 more. Score 80% or higher to unlock the next level. Later levels also include revision questions from earlier levels.</p>
+      <div id="levelList"></div>
+      <div class="result-actions">
+        <button class="start-btn" style="max-width:260px" id="playLevelBtn" onclick="playCurrentLevel()">Start Level 1</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LEVEL RESULT -->
+<div id="levelResultScreen" class="screen">
+  <div class="level-screen-wrap">
+    <div class="level-card" style="text-align:center">
+      <h2 id="lrTitle">Level Complete</h2>
+      <div id="lrPercent" style="font-size:52px;font-weight:800;color:#2b6cb0;margin:12px 0">0%</div>
+      <p id="lrSubtext" class="level-subtitle"></p>
+      <div class="result-grid">
+        <div class="result-item green"><div class="label">Correct</div><div class="value" id="lrCorrect">0</div></div>
+        <div class="result-item red"><div class="label">Wrong</div><div class="value" id="lrWrong">0</div></div>
+        <div class="result-item"><div class="label">Unanswered</div><div class="value" id="lrUnanswered">0</div></div>
+        <div class="result-item highlight"><div class="label">Score</div><div class="value" id="lrScore">0%</div></div>
+      </div>
+      <p id="lrBanner" style="font-weight:700;margin-top:18px"></p>
+      <div class="result-actions">
+        <button class="start-btn" style="max-width:240px" id="lrPrimaryBtn">Continue</button>
+        <button class="btn-home" onclick="renderReview()">Review Answers</button>
+        <button class="btn-home" onclick="goHome()">Back to Home</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- REVIEW -->
+<div id="reviewScreen" class="screen">
+  <div class="level-screen-wrap">
+    <div class="level-card">
+      <h2>Review & Revise</h2>
+      <p class="level-subtitle">The correct answer is shown for every question. A meaningful phrase in the question is highlighted so the question-to-answer connection is easier to memorize.</p>
+      <div id="reviewList"></div>
+      <div class="result-actions">
+        <button class="btn-home" onclick="showLevelResultScreen()">← Back to Results</button>
+        <button class="btn-home" onclick="goHome()">Back to Home</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+const QUESTIONS = [
+  {"q":"What are the visibility modes available in API Connect?","cat":"API Connect","opts":["Public, custom, authenticated","Public and private only","Internal and external only","Restricted and open only"],"ans":"Public, custom, authenticated","key":"API Connect"},
+  {"q":"Which component is used to enforce policy, rate limiting, and message transformation at runtime?","cat":"API Connect","opts":["API Manager","API Designer","API Gateway","Developer Portal"],"ans":"API Gateway","key":"rate limit"},
+  {"q":"Where are the rate and burst limits configured?","cat":"API Connect","opts":["API Manager","Product","Developer Portal","API Designer"],"ans":"Product","key":"burst limit"},
+  {"q":"What is the default rate limit for a product in API Connect?","cat":"API Connect","opts":["10/sec","100 calls/sec","100 calls/min or 1000 calls/day","500 calls/min"],"ans":"100 calls/min or 1000 calls/day","key":"API Connect"},
+  {"q":"What are the different lifecycle phases of an API in API Connect?","cat":"API Connect","opts":["Draft, Review, Publish","Identified, Specified, Realized","Plan, Build, Test, Deploy","Create, Approve, Publish"],"ans":"Identified, Specified, Realized","key":"API Connect"},
+  {"q":"Which package must an administrator download to install the IBM API Connect cloud?","cat":"API Connect","opts":["OVA file","ZIP file","ISO file","MSI file"],"ans":"OVA file","key":"API Connect"},
+  {"q":"Which API Connect subsystem produces details of API usage and volumes?","cat":"API Connect","opts":["API Connect Toolkit","Cloud Manager","API Gateway","Analytics"],"ans":"Analytics","key":"API Connect"},
+  {"q":"In API Connect, which of the following is NOT a property of the Set Variable policy?","cat":"API Connect","opts":["Set","Add","Delete","Clear"],"ans":"Delete","key":"API Connect"},
+  {"q":"An API must be included in what to make it available to an application developer?","cat":"API Connect","opts":["Plan","Product","Organization","Developer Portal"],"ans":"Product","key":"Product"},
+  {"q":"Can one product contain multiple APIs?","cat":"API Connect","opts":["True","False"],"ans":"True","key":"product"},
+  {"q":"Which one of the following statements is NOT true about API lifecycle states?","cat":"API Connect","opts":["Deprecated products can still work for consumers already subscribed","No new subscriptions are allowed for deprecated products","Retired products are not visible","Products in the staged state can be subscribed to"],"ans":"Products in the staged state can be subscribed to","key":"lifecycle"},
+  {"q":"A developer creates a custom user-defined policy usable across all catalogs (Dev, Test, Prod). What should an administrator do to deploy it to all catalogs in the clusters?","cat":"API Connect","opts":["Import the policy for each catalog individually","Import the policy to the primary IBM DataPower Gateway and allow it to fan out","Import the policy into the Cloud Management Console so it can fan out to all servers/catalogs","Run the CLI Toolkit command apic config:set"],"ans":"Import the policy into the Cloud Management Console so it can fan out to all servers/catalogs","key":"catalog"},
+  {"q":"The Cloud Management Console provides the capability to manage which of the following?","cat":"API Connect","opts":["Only Management services","Management services, DataPower services, and Collectives","Only DataPower services","Only Collectives"],"ans":"Management services, DataPower services, and Collectives","key":"Cloud Management Console"},
+  {"q":"An administrator can create a user-defined policy for the IBM DataPower Gateway by configuring a policy definition file. What is the format of that file?","cat":"API Connect","opts":["XML","YAML","JSON","Swagger"],"ans":"YAML","key":"DataPower"},
+  {"q":"Which field name is used to point to a fragment of OpenAPI code defined in a separate file?","cat":"API Connect","opts":["$ref","$link","$include","$containers"],"ans":"$ref","key":"$ref"},
+  {"q":"Developer Portal REST APIs are used to gain access to content in which of the following?","cat":"API Connect","opts":["Catalog","API Gateway","Microservices","Cloud Manager"],"ans":"Catalog","key":"Developer Portal"},
+  {"q":"What is the most significant advantage of using GraphQL over REST?","cat":"API Connect","opts":["GraphQL has a single endpoint, more cost-effective than REST's multiple endpoints","REST needs multiple requests for complex data, GraphQL needs just one","GraphQL lets you change the request data format, REST doesn't","All of the above"],"ans":"All of the above","key":"GraphQL"},
+  {"q":"Can GraphQL be used with both SQL and NoSQL databases?","cat":"API Connect","opts":["True","False"],"ans":"True","key":"GraphQL"},
+  {"q":"Is GraphQL itself a database technology?","cat":"API Connect","opts":["True","False"],"ans":"False","key":"GraphQL"},
+  {"q":"Does GraphQL support server-side caching like REST does?","cat":"API Connect","opts":["True","False"],"ans":"False","key":"GraphQL"},
+  {"q":"UDP is defined in ESQL as a/an:","cat":"IIB/ESQL","opts":["External Variable","Shared Variable","Internal Function","Broker Property"],"ans":"External Variable","key":"ESQL"},
+  {"q":"How many possible execution groups can be created in an integration node?","cat":"IIB/ESQL","opts":["As many as you can","Exactly 5","Only 1","None"],"ans":"As many as you can","key":"execution group"},
+  {"q":"How many brokers can you create for a message flow?","cat":"IIB/ESQL","opts":["Exactly 1","As many as possible","Maximum 5","Maximum 10"],"ans":"As many as possible","key":"message flow"},
+  {"q":"Which command is used to change broker properties?","cat":"IIB/ESQL","opts":["mqsichangebroker","mqsichangeproperties","mqsisetbroker","mqsiupdateproperties"],"ans":"mqsichangeproperties","key":"broker"},
+  {"q":"Which command is used to stop a broker?","cat":"IIB/ESQL","opts":["mqsistop","mqsihalt","mqsikill","mqsiterminate"],"ans":"mqsistop","key":"broker"},
+  {"q":"Which node is used to retrieve the WSDL port from WebSphere Service Registry and Repository to dynamically set the output destination?","cat":"IIB/ESQL","opts":["SOAPRequest","HTTPRequest","RegistryLookup","EndpointLookup"],"ans":"EndpointLookup","key":"EndpointLookup"},
+  {"q":"A developer writes a JavaCompute node using an external Java library packaged in its own JAR. How should the JAR be packaged for deployment?","cat":"IIB/ESQL","opts":["Manually added to the BAR file","Automatically added to the BAR file","Manually added to the shared-classes folder","Automatically compiled into the JavaCompute node JAR"],"ans":"Manually added to the shared-classes folder","key":"Compute node"},
+  {"q":"Which command is used to create a message definition file?","cat":"IIB/ESQL","opts":["mqsicreatemsgdefs","mqsigenmsg","mqsimakemsgdefs","mqsidefmsg"],"ans":"mqsicreatemsgdefs","key":"mqsicreatemsgdefs"},
+  {"q":"Which message domain is used to define an XML message?","cat":"IIB/ESQL","opts":["MRM","XMLNSC","BLOB","TDS"],"ans":"XMLNSC","key":"message domain"},
+  {"q":"Which of the following is not a valid parser?","cat":"IIB/ESQL","opts":["MRM","BLOB","XMLNSC","JMS"],"ans":"JMS","key":"parser"},
+  {"q":"Which ESQL function is used to find the length of a string?","cat":"IIB/ESQL","opts":["LENGTH","LEN","SIZE","COUNT"],"ans":"LENGTH","key":"length"},
+  {"q":"What are the variable types available in ESQL?","cat":"IIB/ESQL","opts":["Normal, shared, external","Global, normal, shared","Global, external, shared","Public, private, protected"],"ans":"Normal, shared, external","key":"ESQL"},
+  {"q":"In ESQL, 'body' is a shortcut for:","cat":"IIB/ESQL","opts":["The first child of the root","The last child of the root","Properties of the last root","The last child of the properties"],"ans":"The last child of the root","key":"ESQL"},
+  {"q":"Which of the following broker properties are accessible in ESQL?","cat":"IIB/ESQL","opts":["Broker name","Broker version","Family and Database/DataSource","All of the above"],"ans":"All of the above","key":"broker"},
+  {"q":"Do all ESQL data types support the concept of a null value?","cat":"IIB/ESQL","opts":["True","False"],"ans":"False","key":"ESQL"},
+  {"q":"Which of the following is NOT a valid value for the Boolean data type in ESQL?","cat":"IIB/ESQL","opts":["True","False","Unknown","None of the above"],"ans":"Unknown","key":"ESQL"},
+  {"q":"Aggregate nodes are used specifically to support which type of flow?","cat":"IIB/ESQL","opts":["Fan in Fan out","Request-Reply","First in First out","Publish/Subscribe"],"ans":"Fan in Fan out","key":"Aggregate"},
+  {"q":"A message flow uses five nodes; nodes 3 & 5 are database nodes. Node 3's transaction property is automatic and node 4 is commit. If an error occurs in node 4, what happens?","cat":"IIB/ESQL","opts":["All changes are kept","Changes are kept until node 3","Changes remain in node 3","Action in node 3 is rolled back"],"ans":"Action in node 3 is rolled back","key":"message flow"},
+  {"q":"Which node is used to take input from a queue in the middle of a message flow?","cat":"IIB/ESQL","opts":["MQInput","MQGet","MQOutput","MQRead"],"ans":"MQGet","key":"message flow"},
+  {"q":"What are the output terminals of the MQInput node?","cat":"IIB/ESQL","opts":["Out, Catch, Failure","Out, Catch, Timeout","Out, Catch, Error","Out, Catch, In"],"ans":"Out, Catch, Failure","key":"MQInput","img":"<svg viewBox=\"0 0 420 180\" xmlns=\"http://www.w3.org/2000/svg\"><defs><marker id=\"arrow\" markerWidth=\"8\" markerHeight=\"8\" refX=\"6\" refY=\"3\" orient=\"auto\"><path d=\"M0,0 L6,3 L0,6 Z\" fill=\"#2b6cb0\"/></marker></defs>\n<rect x=\"160\" y=\"70\" width=\"110\" height=\"50\" rx=\"8\" fill=\"#e8f1fb\" stroke=\"#2b6cb0\" stroke-width=\"2\"/>\n  <text x=\"215\" y=\"88\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"700\" fill=\"#1e4a78\" font-family=\"Arial,sans-serif\">MQInput</text>\n  <text x=\"215\" y=\"107\" text-anchor=\"middle\" font-size=\"10\" fill=\"#4a6f96\" font-family=\"Arial,sans-serif\">node</text>\n<line x1=\"270\" y1=\"85\" x2=\"380\" y2=\"40\" stroke=\"#2b6cb0\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  <text x=\"325\" y=\"56.5\" text-anchor=\"middle\" font-size=\"10\" fill=\"#2b6cb0\" font-family=\"Arial,sans-serif\">Out</text>\n<line x1=\"270\" y1=\"95\" x2=\"380\" y2=\"95\" stroke=\"#2b6cb0\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  <text x=\"325\" y=\"89\" text-anchor=\"middle\" font-size=\"10\" fill=\"#2b6cb0\" font-family=\"Arial,sans-serif\">Catch</text>\n<line x1=\"270\" y1=\"105\" x2=\"380\" y2=\"150\" stroke=\"#2b6cb0\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  <text x=\"325\" y=\"121.5\" text-anchor=\"middle\" font-size=\"10\" fill=\"#2b6cb0\" font-family=\"Arial,sans-serif\">Failure</text>\n<text x=\"385\" y=\"35\" font-size=\"11\" fill=\"#1e4a78\" font-family=\"Arial,sans-serif\">Out</text>\n<text x=\"385\" y=\"99\" font-size=\"11\" fill=\"#1e4a78\" font-family=\"Arial,sans-serif\">Catch</text>\n<text x=\"385\" y=\"155\" font-size=\"11\" fill=\"#1e4a78\" font-family=\"Arial,sans-serif\">Failure</text>\n</svg>"},
+  {"q":"Which queue stores undeliverable messages?","cat":"IIB/ESQL","opts":["reply-to queue","Alias queue","dead letter queue","xml queue"],"ans":"dead letter queue","key":"dead letter queue"},
+  {"q":"How does a compute node interact with a database?","cat":"IIB/ESQL","opts":["Through ODBC DSN","Through JDBC","Through direct database connectivity","Through native API calls"],"ans":"Through direct database connectivity","key":"compute node"},
+  {"q":"Which of the following nodes requires a Boolean value to determine the terminal to which a message is routed?","cat":"IIB/ESQL","opts":["Compute","Filter","All the above","None of the above"],"ans":"Filter","key":"Boolean"},
+  {"q":"What is the purpose of a Compute node?","cat":"IIB/ESQL","opts":["Build a new message using assignment statements","Copy messages between parsers / convert code sets","Transform messages from one format to another","All of the above"],"ans":"All of the above","key":"Compute node","img":"<svg viewBox=\"0 0 420 150\" xmlns=\"http://www.w3.org/2000/svg\"><defs><marker id=\"arrow\" markerWidth=\"8\" markerHeight=\"8\" refX=\"6\" refY=\"3\" orient=\"auto\"><path d=\"M0,0 L6,3 L0,6 Z\" fill=\"#2b6cb0\"/></marker></defs>\n<rect x=\"10\" y=\"50\" width=\"100\" height=\"50\" rx=\"8\" fill=\"#e8f1fb\" stroke=\"#2b6cb0\" stroke-width=\"2\"/>\n  <text x=\"60\" y=\"75\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"700\" fill=\"#1e4a78\" font-family=\"Arial,sans-serif\">Input Node</text>\n  \n<rect x=\"160\" y=\"50\" width=\"110\" height=\"50\" rx=\"8\" fill=\"#e8f1fb\" stroke=\"#2b6cb0\" stroke-width=\"2\"/>\n  <text x=\"215\" y=\"68\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"700\" fill=\"#1e4a78\" font-family=\"Arial,sans-serif\">Compute Node</text>\n  <text x=\"215\" y=\"87\" text-anchor=\"middle\" font-size=\"10\" fill=\"#4a6f96\" font-family=\"Arial,sans-serif\">ESQL logic</text>\n<rect x=\"320\" y=\"50\" width=\"90\" height=\"50\" rx=\"8\" fill=\"#e8f1fb\" stroke=\"#2b6cb0\" stroke-width=\"2\"/>\n  <text x=\"365\" y=\"75\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"700\" fill=\"#1e4a78\" font-family=\"Arial,sans-serif\">Output Node</text>\n  \n<line x1=\"110\" y1=\"75\" x2=\"160\" y2=\"75\" stroke=\"#2b6cb0\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  \n<line x1=\"270\" y1=\"75\" x2=\"320\" y2=\"75\" stroke=\"#2b6cb0\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  \n</svg>"},
+  {"q":"How can you prevent messages from being put into the dead letter queue?","cat":"IIB/ESQL","opts":["Write a failure node and define a backout queue","Disable the DLQ entirely","Set message priority to high","Use only synchronous flows"],"ans":"Write a failure node and define a backout queue","key":"dead letter queue"},
+  {"q":"Which nodes can use ESQL code?","cat":"IIB/ESQL","opts":["Compute node","Passthru node only","Reset Content Descriptor node only","MQInput node only"],"ans":"Compute node","key":"ESQL"},
+  {"q":"CARDINALITY(Folder1.Folder2[2]) for a message with two Folder2 entries returns:","cat":"IIB/ESQL","opts":["0","1","2","3"],"ans":"2","key":"CARDINALITY","img":"<svg viewBox=\"0 0 420 190\" xmlns=\"http://www.w3.org/2000/svg\"><defs><marker id=\"arrow\" markerWidth=\"8\" markerHeight=\"8\" refX=\"6\" refY=\"3\" orient=\"auto\"><path d=\"M0,0 L6,3 L0,6 Z\" fill=\"#2b6cb0\"/></marker></defs>\n<rect x=\"160\" y=\"10\" width=\"100\" height=\"35\" rx=\"8\" fill=\"#e8f1fb\" stroke=\"#2b6cb0\" stroke-width=\"2\"/>\n  <text x=\"210\" y=\"27.5\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"700\" fill=\"#1e4a78\" font-family=\"Arial,sans-serif\">Folder1</text>\n  \n<rect x=\"60\" y=\"80\" width=\"110\" height=\"35\" rx=\"8\" fill=\"#e8f1fb\" stroke=\"#2b6cb0\" stroke-width=\"2\"/>\n  <text x=\"115\" y=\"97.5\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"700\" fill=\"#1e4a78\" font-family=\"Arial,sans-serif\">Folder2 [1]</text>\n  \n<rect x=\"250\" y=\"80\" width=\"110\" height=\"35\" rx=\"8\" fill=\"#e8f1fb\" stroke=\"#2b6cb0\" stroke-width=\"2\"/>\n  <text x=\"305\" y=\"97.5\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"700\" fill=\"#1e4a78\" font-family=\"Arial,sans-serif\">Folder2 [2]</text>\n  \n<line x1=\"200\" y1=\"45\" x2=\"115\" y2=\"80\" stroke=\"#2b6cb0\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  \n<line x1=\"200\" y1=\"45\" x2=\"305\" y2=\"80\" stroke=\"#2b6cb0\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  \n<rect x=\"60\" y=\"140\" width=\"110\" height=\"35\" rx=\"8\" fill=\"#e8f1fb\" stroke=\"#2b6cb0\" stroke-width=\"2\"/>\n  <text x=\"115\" y=\"150.5\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"700\" fill=\"#1e4a78\" font-family=\"Arial,sans-serif\">Field1/Field2</text>\n  <text x=\"115\" y=\"169.5\" text-anchor=\"middle\" font-size=\"10\" fill=\"#4a6f96\" font-family=\"Arial,sans-serif\">BOOK1/Note2</text>\n<rect x=\"250\" y=\"140\" width=\"110\" height=\"35\" rx=\"8\" fill=\"#e8f1fb\" stroke=\"#2b6cb0\" stroke-width=\"2\"/>\n  <text x=\"305\" y=\"150.5\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"700\" fill=\"#1e4a78\" font-family=\"Arial,sans-serif\">Field1/Field2</text>\n  <text x=\"305\" y=\"169.5\" text-anchor=\"middle\" font-size=\"10\" fill=\"#4a6f96\" font-family=\"Arial,sans-serif\">BOOKS3/Note4</text>\n<line x1=\"115\" y1=\"115\" x2=\"115\" y2=\"140\" stroke=\"#2b6cb0\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  \n<line x1=\"305\" y1=\"115\" x2=\"305\" y2=\"140\" stroke=\"#2b6cb0\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  \n</svg>"},
+  {"q":"Is the XSLT stylesheet also an XML document?","cat":"IIB/ESQL","opts":["True","False"],"ans":"True","key":"XSLT stylesheet"},
+  {"q":"What is the message flow compiled format's file extension?","cat":"IIB/ESQL","opts":[".bar",".cmf",".msgflow",".esql"],"ans":".cmf","key":"message flow"},
+  {"q":"Advantages of EAI include:","cat":"IIB/ESQL","opts":["Reduced integration complexity","Reusability of business logic","Real-time data synchronization","All of the above"],"ans":"All of the above","key":"EAI"},
+  {"q":"Which of the following is B2B integration?","cat":"IIB/ESQL","opts":["A consumer buying a TV from a retailer's e-commerce portal","Electronically accepting purchase orders from trading partners","Syncing HR data to a payroll database internally","Serving a web page to a browser"],"ans":"Electronically accepting purchase orders from trading partners","key":"B2B"},
+  {"q":"What connectivity is required for a message in WMB to be published on a given topic?","cat":"IIB/ESQL","opts":["HTTP/HTTPS connection","TCP/IP connection","MQ connection","None of the above"],"ans":"MQ connection","key":"WMB"},
+  {"q":"In which perspective do you deploy a message flow?","cat":"IIB/ESQL","opts":["Administration Perspective","Application Developer Perspective","Debugging Perspective","JAVA Perspective"],"ans":"Administration Perspective","key":"message flow"},
+  {"q":"How would you register database connection parameters to a broker?","cat":"IIB/ESQL","opts":["mqsisetdbparms","mqsicreatebroker","mqsichangeproperties","mqsideploy"],"ans":"mqsisetdbparms","key":"broker"},
+  {"q":"What connectivity does a JDBC driver need to interact with a database in a message flow?","cat":"IIB/ESQL","opts":["Through JDBC only","Through ODBC DSN only","Through direct database connectivity","Through native calls only"],"ans":"Through direct database connectivity","key":"message flow"},
+  {"q":"Message body and exception list can be stored in a flat file using which node?","cat":"IIB/ESQL","opts":["Trace node","Compute node","Filter node","Throw node"],"ans":"Trace node","key":"Trace node"},
+  {"q":"What will be the output of: OutputRoot.XMLNS.Msg.Field1.Field2 VALUE = NULL;","cat":"IIB/ESQL","opts":["Syntax is not correct","Completely deleted","Just set to null","None of the above"],"ans":"Syntax is not correct","key":"XMLNS"},
+  {"q":"Filter, messaging, and shared database are different ______ of integration.","cat":"IIB/ESQL","opts":["Styles","Patterns","Processors","Protocols"],"ans":"Patterns","key":"Filter"},
+  {"q":"What does a global cache in a broker provide?","cat":"IIB/ESQL","opts":["A container to cache and use information within a set of message flows","A container to cache and use information within a set of execution groups","A container to cache information within a single broker only","None of the above"],"ans":"A container to cache and use information within a set of execution groups","key":"global cache"},
+  {"q":"A developer is implementing the Catch section for an error thrown during assemble execution. Which error case is supported by assemble catches?","cat":"IIB/ESQL","opts":["TimeoutError","ConnectionError","FileNotFoundError","ArrayIndexOutOfBoundsError"],"ans":"ConnectionError","key":"ConnectionError"},
+  {"q":"What is the default parsing option for message parsers?","cat":"IIB/ESQL","opts":["Immediate","Complete","On demand","Deferred"],"ans":"On demand","key":"parser"},
+  {"q":"Which of the following are domains used for modelling a WMB message?","cat":"IIB/ESQL","opts":["XMLNSC","DFDL","JSON","All of the above"],"ans":"All of the above","key":"WMB"},
+  {"q":"Garbage Collector is an example of:","cat":".NET Basics","opts":["Daemon Threading","Multiple Threading","Background Thread","Foreground Thread"],"ans":"Background Thread"},
+  {"q":"Which is NOT a main component of WCF?","cat":"WCF","opts":["End Point","Address","Host Environment","Service Class"],"ans":"Address"},
+  {"q":"Which authentication type allows users to access a website without entering a username and password?","cat":"ASP.NET","opts":["Anonymous","Basic","Digest","Integrated Windows Authentication"],"ans":"Anonymous"},
+  {"q":"Which is faster?","cat":"ADO.NET","opts":["DataSet","DataReader","Both are equal","Depends on database"],"ans":"DataReader"},
+  {"q":"Does C# support multiple inheritance of classes?","cat":"C#.NET","opts":["True","False","Only through structs","Only in .NET Core"],"ans":"False"},
+  {"q":"Which interface provides reference counting and basic COM object functionality?","cat":".NET Basics","opts":["IDisposable","IUnknown","IComparable","ICloneable"],"ans":"IUnknown"},
+  {"q":"How many binding stages are there in WCF?","cat":"WCF","opts":["5","7","9","11"],"ans":"9"},
+  {"q":"Which standard is used for communication between client and server over the network?","cat":".NET Basics","opts":["TCP/IP","SMTP","FTP","POP3"],"ans":"TCP/IP"},
+  {"q":"Which element in web.config is used to run code under a specific identity?","cat":"ASP.NET","opts":["<authentication>","<authorization>","<identity>","<credentials>"],"ans":"<identity>"},
+  {"q":"Which interface must be implemented for a .NET object to support serialization?","cat":".NET Basics","opts":["IComparable","IDisposable","ISerializable","IEnumerable"],"ans":"ISerializable"},
+  {"q":"What is CTS in .NET?","cat":".NET Basics","opts":["Common Type System","Common Thread System","Common Transfer System","Common Task Service"],"ans":"Common Type System"},
+  {"q":"Lambda Expressions are primarily used in:","cat":".NET Basics","opts":["LINQ","AJAX","IIS","WCF Hosting"],"ans":"LINQ"},
+  {"q":"Can a WCF service be accessed through different protocols from the same server?","cat":"WCF","opts":["True","False","Only HTTP","Only TCP"],"ans":"True"},
+  {"q":"Data functionality in .NET is supported by:","cat":"ADO.NET","opts":["System.Xml","System.Data.OleDb","Both","None"],"ans":"Both"},
+  {"q":"By default, a Web Form inherits from which class?","cat":"ADO.NET","opts":["System.Web.UI.Control","System.Web.UI.Page","System.Web.UI.WebControls","System.Web.Page"],"ans":"System.Web.UI.Page"},
+  {"q":"Which tool is commonly used to generate a WCF proxy?","cat":"WCF","opts":["wsdl.exe","svcutil.exe","gacutil.exe","ngen.exe"],"ans":"svcutil.exe"},
+  {"q":"Which event is triggered when a page is refreshed and controls post back data?","cat":"ASP.NET","opts":["ControlRefresh","ControlEvent","PostBack Event","PageUnload"],"ans":"ControlRefresh"},
+  {"q":"Which of the following statements is FALSE?","cat":"C#.NET","opts":["Structures can have constructors","C# has copy constructors","Static constructors have access modifiers","None of the above"],"ans":"Static constructors have access modifiers"},
+  {"q":"WWF (Windows Workflow Foundation) applications can be accessed through:","cat":"ASP.NET","opts":["Client Server","Web Server","Both","Neither"],"ans":"Both"},
+  {"q":"Which method is used to save changes made in a DataSet back to the database?","cat":"ADO.NET","opts":["Save","Commit","SaveAll","Update"],"ans":"Save"},
+  {"q":"Which statement is true about ASP.NET support for Server-Side Includes and Server-Side Tags?","cat":"ASP.NET","opts":["It supports Server-Side Includes and Server-Side Tags","It does not support either","It supports Server-Side Includes but not Server-Side Tags","It supports Server-Side Tags but not Server-Side Includes"],"ans":"It supports Server-Side Includes and Server-Side Tags"},
+  {"q":"Any value can be converted directly by using:","cat":".NET Basics","opts":["IMarshalByRefObject","MarshalByRefObject","Convert Class","IConvertible"],"ans":"IMarshalByRefObject"},
+  {"q":"An Abstract Class cannot be instantiated.","cat":"C#.NET","opts":["True","False"],"ans":"True"},
+  {"q":"Can .ToString() handle null values?","cat":"C#.NET","opts":["True","False"],"ans":"False"},
+  {"q":"Scripting is used to connect the client with the web server.","cat":"Web UI","opts":["HTML","JavaScript","ASP.NET","HTTP"],"ans":"HTML"},
+  {"q":"What is the purpose of .NET Obfuscation?","cat":".NET Basics","opts":["Improve performance","Reduce DLL size","Prevent a .NET DLL from being decompiled","Encrypt database connections"],"ans":"Prevent a .NET DLL from being decompiled"},
+  {"q":"Which tool can be used to precompile a .NET application to native code?","cat":".NET Basics","opts":["gacutil.exe","ngen.exe","ildasm.exe","svcutil.exe"],"ans":"ngen.exe"},
+  {"q":"Assembly Manifest contains information about:","cat":".NET Basics","opts":["Assembly metadata and referenced assemblies","Only resources","Only MSIL code","Database configuration"],"ans":"Assembly metadata and referenced assemblies"},
+  {"q":"Which of the following is NOT a content of an Assembly?","cat":".NET Basics","opts":["Manifest","MSIL Code","Resources","Assembly Source Code"],"ans":"Assembly Source Code"},
+  {"q":"Which tools are commonly used to modify .NET security/configuration policies?","cat":".NET Basics","opts":["caspol.exe and mscorcfg.msc","ngen.exe and ildasm.exe","gacutil.exe and installutil.exe","svcutil.exe and wsdl.exe"],"ans":"caspol.exe and mscorcfg.msc"},
+  {"q":"What is the difference between Response.Write() and Response.Output.Write()?","cat":"ASP.NET","opts":["Both are identical","Response.Write() writes output directly, while Response.Output.Write() writes through the output stream and supports formatting overloads","Response.Output.Write() is faster","Response.Write() works only in Web Forms"],"ans":"Response.Write() writes output directly, while Response.Output.Write() writes through the output stream and supports formatting overloads"},
+  {"q":"What is the difference between Convert.ToInt32() and Int32.Parse()?","cat":"C#.NET","opts":["Both are the same","Convert.ToInt32() cannot handle null values","Int32.Parse() cannot handle null values and throws ArgumentNullException","Both can handle null values"],"ans":"Int32.Parse() cannot handle null values and throws ArgumentNullException"},
+  {"q":"An Event has ______ as its default return type.","cat":"C#.NET","opts":["No return type (void)","String","Double","Integer"],"ans":"No return type (void)"},
+  {"q":"How many web.config files can exist in an ASP.NET application?","cat":"ASP.NET","opts":["Only one","More than one","Only two","Up to ten"],"ans":"More than one"},
+  {"q":"Which method is invoked on the SqlDataAdapter object to load a DataSet with data?","cat":"ADO.NET","opts":["Update()","Fill()","Gather()","Load()"],"ans":"Fill()"},
+  {"q":"In C#, structures (structs) are passed by default:","cat":"C#.NET","opts":["By Reference","By Value","By Address","By Memory"],"ans":"By Value"},
+  {"q":"Which of the following statements is correct?","cat":"C#.NET","opts":["A constructor can be used to set default values and control object initialization","Destructors are used with both classes and structures","A class can have more than one destructor","C# provides built-in copy constructors"],"ans":"A constructor can be used to set default values and control object initialization"},
+  {"q":"By default, where is Session data stored in ASP.NET?","cat":"ASP.NET","opts":["Session Object","InProc","StateServer","All of the Above"],"ans":"InProc"},
+  {"q":"Which control is used to validate an Email Address?","cat":"ASP.NET","opts":["RegularExpressionValidator","CompareValidator","equals() Method","RequiredFieldValidator"],"ans":"RegularExpressionValidator"},
+  {"q":"Which session storage modes are supported in ASP.NET?","cat":"ASP.NET","opts":["InProc","StateServer","SQL Server","All of the Above"],"ans":"All of the Above"},
+  {"q":"Which object can hold more than one rowset from the same data source and maintain relationships between them?","cat":"ADO.NET","opts":["DataReader Object","DataSet Object","OleDbConnection Object","DataAdapter"],"ans":"DataSet Object"},
+  {"q":"What namespace does a Web Page belong to in the .NET Framework class hierarchy?","cat":"ASP.NET","opts":["System.Web.Control","System.Web.RootBuilder","System.Web.UserControl","System.Web.UI.Page"],"ans":"System.Web.UI.Page"},
+  {"q":"What .NET collection class allows an element to be accessed using a unique key?","cat":"C#.NET","opts":["HashTable","ArrayList","SortedList","Queue"],"ans":"HashTable"},
+  {"q":"A method __________ an exception when it detects that a problem has occurred.","cat":"C#.NET","opts":["Tries","Catches","Throws","A and B"],"ans":"Throws"},
+  {"q":"When do you absolutely have to declare a class as abstract?","cat":"C#.NET","opts":["When the class itself inherits from an abstract class but does not implement all inherited abstract methods","When at least one method in the class is abstract","Both A and B","None of the Above"],"ans":"Both A and B"},
+  {"q":"WCF supports operation overloading by setting which OperationContract attribute?","cat":"WCF","opts":["Action","Name","Overload","None of the Above"],"ans":"Name"},
+  {"q":"You are developing a web application that retrieves historical book information from a database and displays it to users. Which caching strategy provides the best performance?","cat":"ASP.NET","opts":["Use Output Cache","Use Cache Object","Use ASP.NET Central Cache","Use Client Cache"],"ans":"Use Cache Object"},
+  {"q":"Where do we include the user list for Windows Authentication?","cat":"ASP.NET","opts":["<credentials>","<authorization>","<identity>","<authentication>"],"ans":"<authorization>"},
+  {"q":"Which of the following is not the method of DataAdapter?","cat":"ADO.NET","opts":["Fill","FillSchema","ReadData","Update"],"ans":"ReadData"},
+  {"q":"______________ is the DataType return in IsPostback property.","cat":"ASP.NET","opts":["bit","boolean","int","object","string"],"ans":"boolean"},
+  {"q":"____________ is the Microsoft IIS server running, handling ASP.NET requests among other things.","cat":"ASP.NET","opts":["aspnet_isapi.dll","aspnet_wp.exe","inetinfo.exe"],"ans":"inetinfo.exe"},
+  {"q":"What is the transport protocol used to call a webservice?","cat":"ASP.NET","opts":["HTTP","SOAP","TCP"],"ans":"SOAP"},
+  {"q":"What is the extension of a web user control file?","cat":"ASP.NET","opts":[".Asmx",".Ascx",".Aspx"],"ans":".Ascx"},
+  {"q":"What is the default session out time?","cat":"ASP.NET","opts":["20 Sec","20 Min","1 hr"],"ans":"20 Min"},
+  {"q":"Select the type Processing model that ASP.NET simulate.","cat":"ASP.NET","opts":["Event-driven","Static","Linear"],"ans":"Event-driven"},
+  {"q":"What is a diffgram?","cat":"ADO.NET","opts":["The one which renders the dataset object contents to XML","Finds the difference in two objects","Finds the difference in two files"],"ans":"The one which renders the dataset object contents to XML"},
+  {"q":"Which of the following transfer execution directly to another page?","cat":"ASP.NET","opts":["Server.Transfer","Response.Redirect","Both"],"ans":"Server.Transfer"},
+  {"q":"The C# keyword int maps to which .NET type?","cat":"C#.NET","opts":["System.Int16","System.Int32","System.Int64","System.Int128"],"ans":"System.Int32"},
+  {"q":"What's the main difference between a deep copy and shallow copy?","cat":"C#.NET","opts":["A shallow copy of a collection copies only the ...","Shallow copy of a collection copies only the elements of the collection","A deep copy of a collection copies only the ...","None of the above"],"ans":"Shallow copy of a collection copies only the elements of the collection"},
+  {"q":"The CLR uses which format for assembly version numbers?","cat":".NET Basics","opts":["Major:Minor:Revision:Build","Major:Build:Minor:Revision","Major:Revision:Minor:Build","Major:Minor:Build:Revision"],"ans":"Major:Minor:Build:Revision"},
+  {"q":"What's the difference between System.String and System.StringBuilder classes?","cat":"C#.NET","opts":["System.String is not immutable","System.StringBuilder is not mutable","System.StringBuilder is mutable","StringBuilder cannot allocate more memory as needed"],"ans":"System.StringBuilder is mutable"},
+  {"q":"What kind of accessibility modifiers are assumed for methods inside the interface?","cat":"C#.NET","opts":["Public","Private","Protected","Internal"],"ans":"Public"},
+  {"q":"Which is true about Interface and abstract methods?","cat":"C#.NET","opts":["We can write only one abstract method inside interface.","No method is abstract inside interface.","All the methods inside Interface are abstract methods.","None of the above."],"ans":"All the methods inside Interface are abstract methods."},
+  {"q":"Which of the following class cannot be inherited?","cat":"C#.NET","opts":["Abstract","Sealed","Both","None"],"ans":"Sealed"},
+  {"q":"Which of the following characters ends every C# statement?","cat":"C#.NET","opts":["Period (.)","Colon (:)","Semicolon (;)","Comma (,)"],"ans":"Semicolon (;)"},
+  {"q":"What compiler switch creates an XML file from the XML comments in the files in an assembly?","cat":"C#.NET","opts":["/text","/xml","/doc","/help"],"ans":"/doc"},
+  {"q":"You need to identify a type that meets the following criteria: Is always a number. Is not greater than 65,535. Which type should you choose?","cat":".NET Basics","opts":["System.UInt16","System.IntPtr","Int","System.String"],"ans":"System.UInt16"},
+  {"q":"Which of the following constitutes the .NET Framework?\n1. ASP.NET Applications\n2. CLR\n3. Framework Class Library\n4. WinForm Applications\n5. Windows Services","cat":".NET Basics","opts":["2,5","2,1","2,3","3,4"],"ans":"2,3"},
+  {"q":"A shared lock is issued when","cat":"SQL Server","opts":["A transaction wants to write data from the database and no binary lock is held on that data item","A transaction wants to read data from the database and no exclusive lock is held on that data item","A transaction wants to read data from the database and no lock is held on that data item","A transaction wants to write data from the database and no exclusive lock is held on that data item"],"ans":"A transaction wants to read data from the database and no exclusive lock is held on that data item"},
+  {"q":"ACID stands for","cat":"SQL Server","opts":["Atomicity, Consistency, Isolation, Durability","Atomicity, Concurrency, Isolation, Duplicity","Aggregation, Consistency, Isolation, Durability","Atomicity, Consistency, Identity, Durability"],"ans":"Atomicity, Consistency, Identity, Durability"},
+  {"q":"Given the following code:\nclass test { public int val=0; }\nclass example {\n  public static void Main() {\n    test A = new test();\n    test B = A;\n    A.val = 10;\n    System.Console.WriteLine(\"{0},{1}\", A.val.ToString(), B.val.ToString());\n  }\n}","cat":"C#.NET","opts":["10,10","10,0","0,0","Compile time error"],"ans":"10,10"},
+  {"q":"Packages are used to:","cat":"SQL Server","opts":["Execute SQL Statements","Import and Export data","Execute A View","Execute An Index"],"ans":"Import and Export data"},
+  {"q":"Which type of class can you develop to alter SOAP messages sent to and fro from an XML web service client?","cat":"ASP.NET","opts":["SOAP Messages","SOAP Alterations","SOAP Configurations","SOAP Extensions"],"ans":"SOAP Extensions"},
+  {"q":"On the termination of commit action of a transaction, the relative changes would be reflected in the database. Any failures after the commit operation will definitely not cause loss of updates made by the transaction. It is called _______.","cat":"SQL Server","opts":["Atomicity","Consistency","Isolation","Durability"],"ans":"Durability"},
+  {"q":"Determine the order of the following events:\n1. Application_AuthenticateRequest\n2. Application_AuthorizeRequest\n3. Application_ResolveRequestCache\n4. Application_AcquireRequestState\n5. Application_PreRequestHandlerExecute\n6. Application_UpdateRequestCache","cat":"ASP.NET","opts":["1,3,2,5,4,6","2,1,3,6,4,5","1,2,3,5,4,6","1,2,3,4,5,6"],"ans":"1,2,3,4,5,6"},
+  {"q":"What is a 'Nullable' type in C#? Will the following code compile?\nNullable<Nullable<int>> n","cat":"C#.NET","opts":["Nullable types are instances of the System.Nullable struct. Yes it will compile.","Nullable types are instances of the System.Nullable struct that cannot accept null values. Yes it will compile.","Nullable types are instances of the System.Nullable struct. No it will not compile as nested nullable types are not allowed.","Nullable types are objects of the System.Nullable struct. Yes it will compile."],"ans":"Nullable types are instances of the System.Nullable struct. No it will not compile as nested nullable types are not allowed."},
+  {"q":"class Circle { ... private: double itsRadius; point itsCenter; }\nWhich of the following is true for the above code snippet?","cat":"OOPs","opts":["The code depicts a composition relationship","The code depicts an inheritance relationship","Lifetime of Point is dependent on Circle","None of the above"],"ans":"The code depicts a composition relationship"},
+  {"q":"Reading of an integer is done with which of the following?","cat":"C#.NET","opts":["Console.ReadLine();","int.Parse(Console.ReadLine());","int.Parse.Console.ReadLine();","Parse(Console.ReadLine());"],"ans":"int.Parse(Console.ReadLine());"},
+  {"q":"Which is not DDL among the following?","cat":"SQL Server","opts":["Create","Alter","Drop","Select"],"ans":"Select"},
+  {"q":"Which is the difference between Namespace and Assembly?","cat":".NET Basics","opts":["Namespace is a collection of objects whereas Assembly is a collection of classes","Namespace is physical grouping of logical units, Namespace logically groups classes. Assembly can span multiple namespaces","Assembly is physical grouping of logical units. Namespaces logically group classes. Namespace can span multiple assemblies.","All the above"],"ans":"Assembly is physical grouping of logical units. Namespaces logically group classes. Namespace can span multiple assemblies."},
+  {"q":"In a pop-up browser window, how do you refer to the main browser window that opened it?","cat":"JavaScript","opts":["Use window.opener to refer to the main window from pop-ups","Use window.open to refer to the main window from pop-ups","Use window.previous to refer to the main window from pop-ups","Use window.parent to refer to the main window from pop-ups"],"ans":"Use window.opener to refer to the main window from pop-ups"},
+  {"q":"In SQL Server, an extent stores how many number of pages?","cat":"SQL Server","opts":["Two pages","Four pages","Eight pages","Five pages"],"ans":"Eight pages"},
+  {"q":"You need to add a shared assembly to your web application. Where would be the best place to install the assembly?","cat":"ASP.NET","opts":["Global Assembly Cache on the local computer","The /bin directory of the web application","Global Assembly Cache on the web server","The /bin directory of the default web site"],"ans":"Global Assembly Cache on the web server"},
+  {"q":"Which operator would you use to select all the tuples from either or both relations?","cat":"SQL Server","opts":["DIFFERENCE","INTERSECTION","UNION"],"ans":"UNION"},
+  {"q":"__________ allows for the separation of object interactions from classes and inheritance into distinct layers of abstraction.","cat":"OOPs","opts":["Dispatching","Loosening","Detaching","Decoupling"],"ans":"Decoupling"},
+  {"q":"WCF binding supports legacy ASMX web service.","cat":"WCF","opts":["WebHttpBinding","BasicHttpBinding","wsHttpBinding","None of the above"],"ans":"BasicHttpBinding"},
+  {"q":"Which of the following connection type supports application role permissions and password encryption?","cat":"ADO.NET","opts":["OLE DB","DBLib","ODBC","OLE DB and ODBC"],"ans":"OLE DB and ODBC"},
+  {"q":"Which statement is correct from partitioned view?","cat":"SQL Server","opts":["We cannot create an indexed view on a partitioned view","We can create an indexed view on a partitioned view as long as the index is clustered","We can create an indexed view on a partitioned view"],"ans":"We can create an indexed view on a partitioned view"},
+  {"q":"For a secure login and my ASP.NET web application is spanned across three web-servers (using round-robin load balancing), what would be the best approach to maintain login-in state for the users?","cat":"ASP.NET","opts":["Maintain the login state security through a database.","Maintain the login state security through a Session.","Maintain the login state security through a View State.","All of the Above"],"ans":"Maintain the login state security through a database."},
+  {"q":"The process of reading database records without locking the records being read.","cat":"SQL Server","opts":["Dirty Read","Read Committed","Serializable","Repeatable Read"],"ans":"Dirty Read"},
+  {"q":"Which mode of storing ASP.NET session state is serialized and stored in a separate process?","cat":"ASP.NET","opts":["InProc","StateServer","SQL Server"],"ans":"StateServer"},
+  {"q":"WCF services uses Receive Timeout for","cat":"WCF","opts":["Operation timeout","Connection timeout","Response timeout","Session Idle Timeout"],"ans":"Session Idle Timeout"},
+  {"q":"int[][] arr = new int[][] { ... }\nWhat type of array is this?","cat":"C#.NET","opts":["single D","multi dimensional","jagged","none of the above"],"ans":"jagged"},
+  {"q":"Transaction A has lock on tuple T1 and when another transaction B requests exclusive lock on T1, it is rejected and if transaction B requests shared lock on T1 then","cat":"SQL Server","opts":["Dead Lock","Shared Lock","Exclusive Lock","Lock"],"ans":"Shared Lock"},
+  {"q":"Which of the following utilities can be used to compile managed assemblies into processor-specific native code?","cat":".NET Basics","opts":["gacutil","ngen","dumpbin"],"ans":"ngen"},
+  {"q":"Which of the following are NOT true about .NET Framework?","cat":".NET Basics","opts":["It provides a code-execution environment and eliminates deployment and versioning conflicts.","It provides a code-execution environment for safe execution of code, including code created by an unknown third party.","It provides different programming models for Windows-based applications and Web-based applications."],"ans":"It provides different programming models for Windows-based applications and Web-based applications."},
+  {"q":"________________ is the validation control used for Pattern Matching.","cat":"ASP.NET","opts":["RegularExpressionValidator","RangeValidator","FieldValidator","PatternValidator"],"ans":"RegularExpressionValidator"},
+  {"q":"What is the property name of a GridView (or a DataGrid) that regulates the sorting?","cat":"ASP.NET","opts":["Sorting","EnableSorting","DisableSorting","AllowSorting"],"ans":"AllowSorting"},
+  {"q":"Postback occurs in which of the following forms?","cat":"ASP.NET","opts":["Winforms","HTMLForms","Webforms"],"ans":"Webforms"},
+  {"q":"Can you prevent your class from being inherited and becoming a base class for some other classes?","cat":"C#.NET","opts":["No","Yes"],"ans":"Yes"},
+  {"q":"What is the .NET collection class that allows an element to be accessed using a unique key?","cat":"C#.NET","opts":["HashTable","ArrayList","SortedList"],"ans":"HashTable"},
+  {"q":"A method ____________ an exception when the method detects that a problem has occurred.","cat":"C#.NET","opts":["Trys","Catches","Throws","a and b"],"ans":"Throws"},
+  {"q":"WCF supports operation overloading by setting following contract attributes","cat":"WCF","opts":["Action","Name","Overload","None of the above"],"ans":"Name"},
+  {"q":"Which method do you invoke on the DataAdapter control to load your generated dataset with data?","cat":"ADO.NET","opts":["Fill","Load","GetAll"],"ans":"Fill"},
+  {"q":"How to open more than one DataReader at a time?","cat":"ADO.NET","opts":["Use different DataReader variable","Use different DataReader and Connection variable","Cannot be done"],"ans":"Use different DataReader and Connection variable"},
+  {"q":"What is the advantage of Disconnected mode of ADO.NET in ASP.NET?","cat":"ADO.NET","opts":["Automatically dump data at client PC","Not necessary to connect with server","User data can update and retrieve in dataset and when connection connected, update values with server"],"ans":"User data can update and retrieve in dataset and when connection connected, update values with server"},
+  {"q":"Which object is used to create foreign key between tables?","cat":"ADO.NET","opts":["DataRelation","DataRelationship","DataConstraint"],"ans":"DataRelation"},
+  {"q":"Which one of the following namespaces contains the definition for IDbConnection?","cat":"ADO.NET","opts":["System.Data.Interfaces","System.Data.Common","System.Data"],"ans":"System.Data"},
+  {"q":"Select the Interface which provides Fast, connected forward-only access to data.","cat":"ADO.NET","opts":["IDataRecord","IDatabase","IDataReader"],"ans":"IDataReader"},
+  {"q":"Which feature refers to sharing of attributes and behavior?","cat":".NET Basics","opts":["Polymorphism","Encapsulation","Inheritance","Abstraction"],"ans":"Encapsulation"},
+  {"q":"How do you create Singleton classes?","cat":".NET Basics","opts":["By declaring the constructor of the class as private","By declaring the constructor of the class as public","By declaring the constructor of the class as protected","By declaring the constructor of the class as shared"],"ans":"By declaring the constructor of the class as private"},
+  {"q":"What does the keyword virtual declare for a method or property?","cat":".NET Basics","opts":["The method or property can have a duplicate name within the same assembly","The method or property does not exist at design time","The method or property can be overridden","None of the above"],"ans":"The method or property can be overridden"},
+  {"q":"What are value types and reference types?","cat":".NET Basics","opts":["Value types directly contain their data","Reference types store a reference to memory location","Value types store a reference to memory address","None of the above"],"ans":"Value types directly contain their data"},
+  {"q":"What term is used within the implementation of an indexer's setter to access the parameter being passed to the indexer?","cat":".NET Basics","opts":["this","arg","indexer","value"],"ans":"value"},
+  {"q":"What accessibility modifier is assumed for methods inside an interface?","cat":".NET Basics","opts":["public","private","protected","internal"],"ans":"public"},
+  {"q":"Which type conversion is performed automatically by the compiler?","cat":".NET Basics","opts":["int to long","long to int","double to float","float to int"],"ans":"int to long"},
+  {"q":"Which statement throws an exception if the object is not an instance of Pet?","cat":".NET Basics","opts":["pet p = (pet)o;","pet p = o as pet;","bool isPet = o is pet;","None of the above"],"ans":"pet p = (pet)o;"},
+  {"q":"What is the name given to the assembly that contains localized resources?","cat":".NET Basics","opts":["Spoke","Hub","Sputnik","Satellite"],"ans":"Satellite"},
+  {"q":"Which tool is used to manage GAC?","cat":".NET Basics","opts":["GacMgr.exe","GacSvr3.exe","Gacutil.exe","GacSvr.exe"],"ans":"Gacutil.exe"},
+  {"q":"If a method is marked as protected internal, who can access it?","cat":".NET Basics","opts":["Classes both in the same assembly and derived from the declaring class","Only methods in the same class","Internal methods using reflection","Classes within the same assembly and classes derived from the declaring class"],"ans":"Classes that are both in the same assembly and derived from the declaring class"},
+  {"q":"What is the main reason to use operator overloading?","cat":".NET Basics","opts":["Faster arithmetic operations","Reduce executable size","Make client code more concise and readable","All of the above"],"ans":"Make client code more concise and readable"},
+  {"q":"Is the finally block executed if there is no exception?","cat":".NET Basics","opts":["No","Yes","Sometimes","None of the above"],"ans":"Yes"},
+  {"q":"What is dynamic binding?","cat":".NET Basics","opts":["Method based on reference type","Method determined by runtime object type","Arguments ignored","All of the above"],"ans":"Method determined by runtime object type"},
+  {"q":"Which of the following is a value type?","cat":".NET Basics","opts":["Array","Delegate","Enum","Class"],"ans":"Enum"},
+  {"q":"Which syntax is used for XML documentation comments in C#?","cat":".NET Basics","opts":["/** */","//#","///","//*"],"ans":"///"},
+  {"q":"Which of the following is NOT a C# keyword?","cat":".NET Basics","opts":["public","private","abstract","protect"],"ans":"protect"},
+  {"q":"All classes ultimately inherit from which class?","cat":".NET Basics","opts":["System.Data","System.Form","System.Windows","System.Object"],"ans":"System.Object"},
+  {"q":"How can Singleton Pattern be implemented in .NET?","cat":".NET Basics","opts":["Create a class with static members and private constructor","Create only static members","Create an abstract class","Use ICloneable"],"ans":"Create a class with static members and private constructor"},
+  {"q":"How many bytes does the decimal data type use?","cat":".NET Basics","opts":["16","32","24","128"],"ans":"128"},
+  {"q":"Which of the following correctly declares a two-dimensional array in C#?","cat":"C#.NET","opts":["int[,] myArray;","int[][] myArray;","int[2] myArray;","System.Array[2] myArray;"],"ans":"int[,] myArray;"},
+  {"q":"What kind of array is represented by int[][]?","cat":"C#.NET","opts":["Multi-dimensional array","Single-dimensional array","JD array","Jagged array"],"ans":"Jagged array"},
+  {"q":"What is the output?\nTest A = new Test();\nTest B = A;\nA.val = 10;\nConsole.WriteLine(\"{0},{1}\", A.val, B.val);","cat":"C#.NET","opts":["10,10","10,0","0,0","Compile-time error"],"ans":"10,10"},
+  {"q":"What is the output?\nconst int c1 = 5;\nconst int c2 = c1 + 5;","cat":"C#.NET","opts":["x=22,y=11 c1=5,c2=10","x=0,y=11 c1=5,c2=10","x=22,y=11 c1=10,c2=5","x=11,y=22 c1=5,c2=10"],"ans":"x=11,y=22 c1=5,c2=10"},
+  {"q":"What will be the value of inLoop after the loop finishes?\nfor(myCounter = 0; myCounter != 100; myCounter += 2) { inLoop++; }","cat":"C#.NET","opts":["100","101","50","51"],"ans":"50"},
+  {"q":"Which conversion is implicit in C#?","cat":"C#.NET","opts":["int to long","long to int","double to float","float to int"],"ans":"int to long"},
+  {"q":"Which of the following is true about nullable types?","cat":"C#.NET","opts":["Nested nullable types are allowed","Nullable types cannot contain null","Nested nullable types are not allowed","Nullable types are reference types"],"ans":"Nested nullable types are not allowed"},
+  {"q":"What is the output of \"1\" + 2 + 4?","cat":"C#.NET","opts":["124","7","6","Error"],"ans":"124"},
+  {"q":"What is the output of 2 + 5 + \"8\"?","cat":"C#.NET","opts":["258","78","15","Error"],"ans":"78"},
+  {"q":"Which keyword prevents a class from being inherited?","cat":"C#.NET","opts":["abstract","virtual","sealed","static"],"ans":"sealed"},
+  {"q":"What does the override keyword do in C#?","cat":"C#.NET","opts":["Creates a new method","Hides a base class member","Provides a new implementation for a virtual or abstract member","Makes a method static"],"ans":"Provides a new implementation for a virtual or abstract member"},
+  {"q":"Which of the following statements about sealed classes is true?","cat":"C#.NET","opts":["A sealed class cannot be instantiated","A sealed class cannot be used as a base class","A sealed class must contain only static members","A sealed class can only inherit interfaces"],"ans":"A sealed class cannot be used as a base class"},
+  {"q":"Why are sealed classes used?","cat":"C#.NET","opts":["To improve database performance","To prevent derivation","To enable multiple inheritance","To support operator overloading"],"ans":"To prevent derivation"},
+  {"q":"What is Reflection in .NET used for?","cat":"C#.NET","opts":["Loading assemblies at runtime","Discovering type information at runtime","Both A and B","Neither A nor B"],"ans":"Both A and B"},
+  {"q":"What is the output?\nCarOptions options = CarOptions.SunRoof | CarOptions.FogLights;\nConsole.WriteLine(options);\nConsole.WriteLine((int)options);","cat":"C#.NET","opts":["1,4 5","SunRoof,Spoiler,FogLights,TintedWindows 8","SunRoof,FogLights 5","SunRoof,Spoiler,FogLights,TintedWindows 15"],"ans":"SunRoof,FogLights 5"},
+  {"q":"Which method must be overridden in a custom ASP.NET server control?","cat":"ASP.NET","opts":["Paint()","Control_Build()","Render()","Constructor"],"ans":"Render()"},
+  {"q":"What is the output?\nint[] arr = {1,2,3,4,5};\nFillArray(ref arr);\nWhere FillArray changes arr[0]=1111 and arr[4]=5555.","cat":"C#.NET","opts":["1111 2 3 4 5555","1 2 3 4 5555","1111 2 3 4 5","1 2 3 4 5"],"ans":"1111 2 3 4 5555"},
+  {"q":"What is the purpose of operator overloading?","cat":"C#.NET","opts":["Improve arithmetic speed","Reduce executable size","Improve code readability","All of the above"],"ans":"Improve code readability"},
+  {"q":"Which statement about interfaces and abstract classes is correct?","cat":"C#.NET","opts":["Interface methods are abstract; abstract classes may contain concrete methods","Interface methods are concrete","Abstract classes cannot contain methods","Both are identical"],"ans":"Interface methods are abstract; abstract classes may contain concrete methods"},
+  {"q":"Which of the following is a value type? (2)","cat":"C#.NET","opts":["Class","Array","Enum","Delegate"],"ans":"Enum"},
+  {"q":"Which file contains web application settings?","cat":"ASP.NET","opts":["app.config","web.config","assembly.config","machine.config"],"ans":"web.config"},
+  {"q":"In which control can Insert functionality be enabled directly?","cat":"ASP.NET","opts":["GridView","DataList","FormView","Repeater"],"ans":"FormView"},
+  {"q":"Which of the following is NOT a new control introduced in ASP.NET 2.0?","cat":"ASP.NET","opts":["WebPart Control","Navigation Control","Validation Control","Login Control"],"ans":"Validation Control"},
+  {"q":"What is the sequence of ASP.NET page events?","cat":"ASP.NET","opts":["Page_Init → Page_Load → Control Events → Page_Unload","Page_Load → Page_Init → Control Events → Page_Unload","Initialize Controls → Page_Load → Page_Unload","Page_Init → Control Events → Page_Unload"],"ans":"Page_Init → Page_Load → Control Events → Page_Unload"},
+  {"q":"What data types are supported by RangeValidator?","cat":"ASP.NET","opts":["Integer, String, Date","Integer only","String only","Any regular expression"],"ans":"Integer, String, Date"},
+  {"q":"Which is a valid ASP.NET comment block?","cat":"ASP.NET","opts":["<!---comment--->","<!--comment-->","<%--comment--%>","<%!--comment-->"],"ans":"<%--comment--%>"},
+  {"q":"The StateServer session mode runs on which default port?","cat":"ASP.NET","opts":["42424","24242","8080","1033"],"ans":"42424"},
+  {"q":"Which state management technique can exist until the browser is closed or longer?","cat":"ASP.NET","opts":["Cookies","Session","ViewState","History"],"ans":"Cookies"},
+  {"q":"Which attribute makes an HTML control execute on the server?","cat":"ASP.NET","opts":["Server","ID","Execute","Runat"],"ans":"Runat"},
+  {"q":"In ASP.NET deployment, which method is commonly used?","cat":"ASP.NET","opts":["Copy","Deploy","Setup","XCopy"],"ans":"XCopy"},
+  {"q":"Where are SQL Server usernames and passwords stored?","cat":"SQL Server","opts":["sys_principals and sys.sql_logins","sys_profiles","sys_admin","usr.server_principals and usr.sql_logins"],"ans":"sys_principals and sys.sql_logins"},
+  {"q":"Clustered Index stores data:","cat":"SQL Server","opts":["Logically","Physically","Both Logically and Physically","None of the above"],"ans":"Physically"},
+  {"q":"Indexing can be done on which of the following?","cat":"SQL Server","opts":["Tables, Views, Stored Procedures","Views, Stored Procedures","Tables and Views","None of the Above"],"ans":"Tables and Views"},
+  {"q":"Which system database stores database and user information?","cat":"SQL Server","opts":["Master","Model","TempDB","MSDB"],"ans":"Master"},
+  {"q":"SQL Server supports which ANSI SQL flavor?","cat":"SQL Server","opts":["SQL*Plus","T-SQL","Both","None"],"ans":"T-SQL"},
+  {"q":"After which transaction operation are updates permanently stored?","cat":"SQL Server","opts":["Rollback","Savepoint","Checkpoint","Commit"],"ans":"Commit"},
+  {"q":"OLTP stands for:","cat":"SQL Server","opts":["Online Transmit Processing","Online Transaction Processing","Online Transaction Protocol","Online Transaction Programming"],"ans":"Online Transaction Processing"},
+  {"q":"In SQL Server, an extent contains how many pages?","cat":"SQL Server","opts":["2","4","8","16"],"ans":"8"},
+  {"q":"A query inside another query is called:","cat":"SQL Server","opts":["Join","Select Statement","Subquery","View"],"ans":"Subquery"},
+  {"q":"Which normal form eliminates repeating groups?","cat":"SQL Server","opts":["1NF","2NF","3NF","BCNF"],"ans":"1NF"},
+  {"q":"Which clause specifies conditions that determine groups included in a query?","cat":"SQL Server","opts":["Having","Where","Distinct","Exists"],"ans":"Having"},
+  {"q":"Aggregate functions are generally used with:","cat":"SQL Server","opts":["GROUP BY","GROUP BY and HAVING","ORDER BY","COMPUTE BY"],"ans":"COMPUTE BY"},
+  {"q":"The representation of identifiers containing spaces is:","cat":"SQL Server","opts":["(Order Details)","[Order]Details","Order [Details]","[Order Details]"],"ans":"[Order Details]"},
+  {"q":"Which command creates a Stored Procedure?","cat":"SQL Server","opts":["SQL Enterprise Manager or SQL Statement","SQL Statement only","Enterprise Manager only","None"],"ans":"SQL Enterprise Manager or SQL Statement"},
+  {"q":"Which operator returns rows existing in the first relation but not in the second?","cat":"SQL Server","opts":["Union","Intersect","Difference","Join"],"ans":"Difference"},
+  {"q":"Which command removes all rows without logging individual deletions?","cat":"SQL Server","opts":["Drop","Truncate","Delete","Alter"],"ans":"Truncate"},
+  {"q":"Which SQL command deletes rows from a table?","cat":"SQL Server","opts":["Drop","Delete","Remove","None"],"ans":"Delete"},
+  {"q":"Which clause usually appears last in a SELECT query?","cat":"SQL Server","opts":["WHERE","GROUP BY","ORDER BY","HAVING"],"ans":"ORDER BY"},
+  {"q":"Which SQL statement removes duplicate rows from results?","cat":"SQL Server","opts":["Unique","Group By","Distinct","None"],"ans":"Distinct"},
+  {"q":"What is the difference between CHAR and NVARCHAR?","cat":"SQL Server","opts":["No difference","CHAR is fixed-length; NVARCHAR is variable-length Unicode","CHAR is variable-length","NVARCHAR is fixed-length"],"ans":"CHAR is fixed-length; NVARCHAR is variable-length Unicode"},
+  {"q":"Which file includes application-level error events?","cat":"ASP.NET","opts":["AssemblyInfo.cs","web.config","Global.asax","Default.aspx"],"ans":"Global.asax"},
+  {"q":"Which state management technique exists only for the current page?","cat":"ASP.NET","opts":["ViewState","Session","Application","Cache"],"ans":"ViewState"},
+  {"q":"The process where a page posts data back to itself is called:","cat":"ASP.NET","opts":["PostBack","Session","QueryString","Redirect"],"ans":"PostBack"},
+  {"q":"Which of the following is NOT an intrinsic ASP.NET state management object?","cat":"ASP.NET","opts":["Session","Server","Application","Cookies"],"ans":"Server"},
+  {"q":"Fragment caching is generally implemented using:","cat":"ASP.NET","opts":["Applet","Custom Web Service Control","User Control","HTML Server Control"],"ans":"User Control"},
+  {"q":"What is the purpose of web.config?","cat":"ASP.NET","opts":["Store application configuration settings","Configure browser","Configure database server","Configure operating system"],"ans":"Store application configuration settings"},
+  {"q":"Which syntax is used to create a Web Server Control?","cat":"ASP.NET","opts":["tagprefix:tagname","tagname:tagvalue","tagprefix:tagvalue","tagname:tagprefix"],"ans":"tagprefix:tagname"},
+  {"q":"Which object is thread-safe in ASP.NET?","cat":"ASP.NET","opts":["Session","Application","Cookies","Cache"],"ans":"Cache"},
+  {"q":"What is a DiffGram in ADO.NET?","cat":"ADO.NET","opts":["XML format identifying original and current versions of data","Sequential format","Binary format","Database snapshot"],"ans":"XML format identifying original and current versions of data"},
+  {"q":"Which method loads data into a DataSet?","cat":"ADO.NET","opts":["Bind()","Fill()","FillData()","SetData()"],"ans":"Fill()"},
+  {"q":"Which object is best for high-performance forward-only data retrieval?","cat":"ADO.NET","opts":["DataSet","DataReader","DataTable","DataView"],"ans":"DataReader"},
+  {"q":"Which object creates a relationship between DataTables?","cat":"ADO.NET","opts":["DataRelation","DataRelationship","DataConstraint","DataKey"],"ans":"DataRelation"},
+  {"q":"What is a Typed DataSet?","cat":"ADO.NET","opts":["Dataset generated from XSD schema with strongly typed classes","Dataset without schema","Untyped dataset","XML file"],"ans":"Dataset generated from XSD schema with strongly typed classes"},
+  {"q":"Which parameter direction is used for stored procedure return values?","cat":"ADO.NET","opts":["Input","Output","ReturnValue","InputOutput"],"ans":"ReturnValue"},
+  {"q":"In a popup browser window, how do you refer to the parent window?","cat":"Web UI","opts":["window.opener","window.open","window.previous","window.parent"],"ans":"window.opener"},
+  {"q":"Which is NOT a valid XmlHttpRequest method?","cat":"Web UI","opts":["open()","send()","close()","abort()"],"ans":"close()"},
+  {"q":"To replace the entire frameset and load a new page, which target is used?","cat":"Web UI","opts":["_top","_window","_title","_top_window"],"ans":"_top"},
+  {"q":"Which protocol is NOT commonly used by Web Services?","cat":"Web UI","opts":["WSDL","SOAP","TCP","HTTP"],"ans":"TCP"},
+  {"q":"WSDL stands for:","cat":"Web UI","opts":["Web Server Definition Language","Web Service Definition Language","Web Server Description Language","Web Service Description Language"],"ans":"Web Service Description Language"},
+  {"q":"As soon as Add Web Reference is clicked, which files are generated?","cat":"Web UI","opts":[".disco",".vsdisco",".map",".wsdl"],"ans":".disco"},
+  {"q":"What does serialization mean?","cat":"Web UI","opts":["Convert object into bytes","Convert bytes into object","Encrypt object","Compress object"],"ans":"Convert object into bytes"},
+  {"q":"Which IIS process handled ASP.NET requests in older IIS versions?","cat":"Web UI","opts":["aspnet_isapi.dll","aspnet_wp.exe","inetinfo.exe","None"],"ans":"inetinfo.exe"},
+  {"q":"What is Impersonation?","cat":"Web UI","opts":["Authentication","Authorization","Assuming identity of another user","Reflection"],"ans":"Assuming identity of another user"},
+  {"q":"Where are shared assemblies installed?","cat":"Web UI","opts":["System Assembly Cache","Global Assembly Cache","Machine Assembly Cache","Windows Assembly Cache"],"ans":"Global Assembly Cache"},
+  {"q":"What does MustInherit mean in VB.NET?","cat":".NET Basics","opts":["Abstract Class","Sealed Class","Interface","Virtual Class"],"ans":"Abstract Class"},
+  {"q":".NET Assembly is:","cat":".NET Basics","opts":["Only DLL","Only EXE","Partially compiled code library","None"],"ans":"Partially compiled code library"},
+  {"q":"A correct interleaved execution of transactions must be:","cat":"SQL Server","opts":["Serializable","Externalizable","Deadlock","Parallel"],"ans":"Serializable"},
+  {"q":"Which of the following is NOT a CLR component?","cat":".NET Basics","opts":["CLR","Thread Support","COM Marshaler","Type Checker"],"ans":"CLR"},
+  {"q":"Which lock allows another transaction to acquire a shared lock but not an exclusive lock?","cat":"SQL Server","opts":["Update Lock","Exclusive Lock","Shared Lock","Deadlock"],"ans":"Shared Lock"},
+  {"q":"Which Normal Form is stronger than 3NF?","cat":"SQL Server","opts":["1NF","2NF","3NF","BCNF"],"ans":"BCNF"},
+  {"q":"Which command is used to create a role in SQL Server?","cat":"SQL Server","opts":["CREATE ROLE","CREATE GRANT","CREATE AUTHORITY","CREATE AUTHENTICATION"],"ans":"CREATE ROLE"},
+  {"q":"Which SQL command is used to grant permissions to a user or role?","cat":"SQL Server","opts":["ALLOW","GRANT","PERMIT","AUTHORIZE"],"ans":"GRANT"},
+  {"q":"Which command removes previously granted permissions?","cat":"SQL Server","opts":["REVOKE","REMOVE","DELETE","DROP"],"ans":"REVOKE"},
+  {"q":"Which type of join returns all rows from both tables?","cat":"SQL Server","opts":["INNER JOIN","LEFT JOIN","RIGHT JOIN","FULL OUTER JOIN"],"ans":"FULL OUTER JOIN"},
+  {"q":"Which SQL clause filters rows before grouping?","cat":"SQL Server","opts":["HAVING","WHERE","ORDER BY","DISTINCT"],"ans":"WHERE"},
+  {"q":"Which SQL clause filters groups after aggregation?","cat":"SQL Server","opts":["HAVING","WHERE","GROUP BY","ORDER BY"],"ans":"HAVING"},
+  {"q":"Which key uniquely identifies a row in a table?","cat":"SQL Server","opts":["Foreign Key","Candidate Key","Primary Key","Alternate Key"],"ans":"Primary Key"},
+  {"q":"What is a Foreign Key?","cat":"SQL Server","opts":["A key used for indexing","A key that uniquely identifies a row","A field that establishes a relationship between tables","A duplicate key"],"ans":"A field that establishes a relationship between tables"},
+  {"q":"Which SQL function returns the current date and time?","cat":"SQL Server","opts":["GETDATE()","NOW()","CURRENT()","SYSDATE()"],"ans":"GETDATE()"},
+  {"q":"Which SQL function returns the number of rows?","cat":"SQL Server","opts":["SUM()","COUNT()","TOTAL()","ROWCOUNT()"],"ans":"COUNT()"},
+  {"q":"What is the default extension of an ASP.NET Web Form?","cat":"ASP.NET","opts":[".asp",".aspx",".ascx",".asmx"],"ans":".aspx"},
+  {"q":"What is the extension used for User Controls?","cat":"ASP.NET","opts":[".aspx",".ascx",".asmx",".config"],"ans":".ascx"},
+  {"q":"What is the extension used for Web Services?","cat":"ASP.NET","opts":[".aspx",".ascx",".asmx",".svc"],"ans":".asmx"},
+  {"q":"Which object is available across all users of an application?","cat":"ASP.NET","opts":["Session","ViewState","Application","Cache"],"ans":"Application"},
+  {"q":"Which event occurs first in the ASP.NET page life cycle?","cat":"ASP.NET","opts":["Load","Init","PreRender","Unload"],"ans":"Init"},
+  {"q":"Which validator ensures a value exists in a predefined list?","cat":"ASP.NET","opts":["CompareValidator","RequiredFieldValidator","CustomValidator","None of the Above"],"ans":"CustomValidator"},
+  {"q":"Which validator checks whether a control is not empty?","cat":"ASP.NET","opts":["CompareValidator","RangeValidator","RequiredFieldValidator","RegularExpressionValidator"],"ans":"RequiredFieldValidator"},
+  {"q":"Which validator validates input against a pattern?","cat":"ASP.NET","opts":["RangeValidator","CompareValidator","RegularExpressionValidator","RequiredFieldValidator"],"ans":"RegularExpressionValidator"},
+  {"q":"Which validator compares values between controls?","cat":"ASP.NET","opts":["CompareValidator","RangeValidator","CustomValidator","RequiredFieldValidator"],"ans":"CompareValidator"},
+  {"q":"Which validator checks if a value falls within a range?","cat":"ASP.NET","opts":["CompareValidator","RangeValidator","RequiredFieldValidator","ValidationSummary"],"ans":"RangeValidator"},
+  {"q":"Which object is used to connect to SQL Server?","cat":"ADO.NET","opts":["SqlConnection","SqlCommand","SqlAdapter","SqlReader"],"ans":"SqlConnection"},
+  {"q":"Which object executes SQL statements?","cat":"ADO.NET","opts":["SqlDataAdapter","SqlCommand","SqlConnection","SqlReader"],"ans":"SqlCommand"},
+  {"q":"Which object provides disconnected data access?","cat":"ADO.NET","opts":["DataReader","DataSet","SqlCommand","SqlConnection"],"ans":"DataSet"},
+  {"q":"Which object provides connected, forward-only access?","cat":"ADO.NET","opts":["DataSet","DataTable","DataReader","DataView"],"ans":"DataReader"},
+  {"q":"Which DataAdapter method fills a DataSet?","cat":"ADO.NET","opts":["Load()","Insert()","Fill()","Update()"],"ans":"Fill()"},
+  {"q":"Which DataAdapter method sends changes back to the database?","cat":"ADO.NET","opts":["Update()","Save()","Commit()","Refresh()"],"ans":"Update()"},
+  {"q":"Which object represents an in-memory table?","cat":"ADO.NET","opts":["DataSet","DataTable","DataReader","DataAdapter"],"ans":"DataTable"},
+  {"q":"Which object provides a customized view of DataTable data?","cat":"ADO.NET","opts":["DataSet","DataView","DataAdapter","DataRelation"],"ans":"DataView"},
+  {"q":"What is the purpose of DataRelation?","cat":"ADO.NET","opts":["Connect to database","Relate DataTables","Execute SQL","Store XML"],"ans":"Relate DataTables"},
+  {"q":"Which XML format stores original and modified values?","cat":"ADO.NET","opts":["XSD","Schema XML","DiffGram","DTD"],"ans":"DiffGram"},
+  {"q":"What is Boxing?","cat":"C#.NET","opts":["Converting Reference Type to Value Type","Converting Value Type to Object/Reference Type","Copying Objects","Type Casting Arrays"],"ans":"Converting Value Type to Object/Reference Type"},
+  {"q":"What is Unboxing?","cat":"C#.NET","opts":["Converting Object back to Value Type","Converting String to Int","Converting Array to Object","Converting Class to Struct"],"ans":"Converting Object back to Value Type"},
+  {"q":"Which keyword is used to inherit a class in C#?","cat":"C#.NET","opts":["extends","inherits",":","implement"],"ans":":"},
+  {"q":"Which keyword prevents method overriding?","cat":"C#.NET","opts":["virtual","override","abstract","sealed"],"ans":"sealed"},
+  {"q":"Which keyword forces derived classes to provide implementation?","cat":"C#.NET","opts":["virtual","abstract","override","sealed"],"ans":"abstract"},
+  {"q":"Can C# support multiple inheritance of classes?","cat":"C#.NET","opts":["Yes","No","Only through structs","Only through delegates"],"ans":"No"},
+  {"q":"Can C# support multiple interface inheritance?","cat":"C#.NET","opts":["Yes","No","Only in .NET Core","Only in ASP.NET"],"ans":"Yes"},
+  {"q":"Which keyword refers to the current instance?","cat":"C#.NET","opts":["base","current","self","this"],"ans":"this"},
+  {"q":"Which keyword refers to the immediate base class?","cat":"C#.NET","opts":["parent","super","base","this"],"ans":"base"},
+  {"q":"Which exception is thrown when dividing by zero?","cat":"C#.NET","opts":["ArithmeticException","DivideByZeroException","InvalidOperationException","OverflowException"],"ans":"DivideByZeroException"},
+  {"q":"Which JavaScript function displays a confirmation dialog?","cat":"Web UI","opts":["alert()","confirm()","prompt()","dialog()"],"ans":"confirm()"},
+  {"q":"Which JavaScript function accepts user input?","cat":"Web UI","opts":["alert()","confirm()","prompt()","input()"],"ans":"prompt()"},
+  {"q":"Which symbol is used for ID selectors in CSS?","cat":"Web UI","opts":[".","#","*","@"],"ans":"#"},
+  {"q":"Which symbol is used for Class selectors in CSS?","cat":"Web UI","opts":[".","#","*","@"],"ans":"."},
+  {"q":"Which HTML tag creates a hyperlink?","cat":"Web UI","opts":["<link>","<href>","<a>","<url>"],"ans":"<a>"},
+  {"q":"Which HTML tag inserts a line break?","cat":"Web UI","opts":["<break>","<lb>","<br>","<newline>"],"ans":"<br>"},
+  {"q":"Which HTML tag creates a table row?","cat":"Web UI","opts":["<td>","<tr>","<th>","<table-row>"],"ans":"<tr>"},
+  {"q":"Which HTML tag creates a table header cell?","cat":"Web UI","opts":["<th>","<tr>","<td>","<theadcell>"],"ans":"<th>"},
+  {"q":"Which CSS property changes text color?","cat":"Web UI","opts":["font-color","text-color","color","foreground"],"ans":"color"},
+  {"q":"Which CSS property changes background color?","cat":"Web UI","opts":["bg-color","background-color","color-background","bgcolor"],"ans":"background-color"},
+  {"q":"Which SQL command permanently removes a table structure and its data?","cat":"SQL Server","opts":["DELETE","TRUNCATE","DROP","REMOVE"],"ans":"DROP"},
+  {"q":"Which SQL command removes all rows but keeps the table structure?","cat":"SQL Server","opts":["DELETE","TRUNCATE","DROP","CLEAR"],"ans":"TRUNCATE"},
+  {"q":"Which constraint prevents duplicate values?","cat":"SQL Server","opts":["PRIMARY KEY","UNIQUE","FOREIGN KEY","CHECK"],"ans":"UNIQUE"},
+  {"q":"Which constraint ensures referential integrity?","cat":"SQL Server","opts":["UNIQUE","CHECK","FOREIGN KEY","DEFAULT"],"ans":"FOREIGN KEY"},
+  {"q":"Which clause is used to sort query results?","cat":"SQL Server","opts":["GROUP BY","SORT BY","ORDER BY","ARRANGE BY"],"ans":"ORDER BY"},
+  {"q":"Which aggregate function calculates average values?","cat":"SQL Server","opts":["COUNT()","SUM()","AVG()","MEAN()"],"ans":"AVG()"},
+  {"q":"Which aggregate function returns the largest value?","cat":"SQL Server","opts":["MAX()","TOP()","HIGH()","BIG()"],"ans":"MAX()"},
+  {"q":"Which aggregate function returns the smallest value?","cat":"SQL Server","opts":["MIN()","LOW()","SMALL()","BOTTOM()"],"ans":"MIN()"},
+  {"q":"Which operator combines result sets and removes duplicates?","cat":"SQL Server","opts":["UNION","UNION ALL","JOIN","INTERSECT"],"ans":"UNION"},
+  {"q":"Which operator combines result sets including duplicates?","cat":"SQL Server","opts":["UNION","UNION ALL","INTERSECT","JOIN"],"ans":"UNION ALL"},
+  {"q":"Which control displays validation error summaries?","cat":"ASP.NET","opts":["ValidationGroup","ValidationSummary","ErrorSummary","ValidatorControl"],"ans":"ValidationSummary"},
+  {"q":"Which ASP.NET control is used to display tabular data?","cat":"ASP.NET","opts":["GridView","Label","Literal","HyperLink"],"ans":"GridView"},
+  {"q":"Which control supports automatic paging and sorting?","cat":"ASP.NET","opts":["Repeater","DataList","GridView","Panel"],"ans":"GridView"},
+  {"q":"Which control is commonly used for templated repeated data display?","cat":"ASP.NET","opts":["Repeater","Label","Button","TextBox"],"ans":"Repeater"},
+  {"q":"Which object stores data per user session?","cat":"ASP.NET","opts":["Application","Session","Cache","ViewState"],"ans":"Session"},
+  {"q":"Which object stores data shared across all users?","cat":"ASP.NET","opts":["Session","ViewState","Application","Cookies"],"ans":"Application"},
+  {"q":"Which state management technique stores data on the client side?","cat":"ASP.NET","opts":["Session","Application","Cookies","Cache"],"ans":"Cookies"},
+  {"q":"Which property enables paging in GridView?","cat":"ASP.NET","opts":["AllowSorting","AllowPaging","EnablePaging","PagingEnabled"],"ans":"AllowPaging"},
+  {"q":"Which property enables sorting in GridView?","cat":"ASP.NET","opts":["AllowSorting","EnableSorting","SortEnabled","GridSorting"],"ans":"AllowSorting"},
+  {"q":"Which event is raised when a GridView page changes?","cat":"ASP.NET","opts":["Page_Load","PageIndexChanging","GridPaging","RowChanging"],"ans":"PageIndexChanging"},
+  {"q":"Which namespace contains ADO.NET classes?","cat":"ADO.NET","opts":["System.Data","System.Web","System.IO","System.Xml"],"ans":"System.Data"},
+  {"q":"Which class represents a SQL Server Data Adapter?","cat":"ADO.NET","opts":["SqlCommand","SqlConnection","SqlDataAdapter","SqlReader"],"ans":"SqlDataAdapter"},
+  {"q":"Which class reads XML into a DataSet?","cat":"ADO.NET","opts":["ReadXml()","LoadXml()","FillXml()","ImportXml()"],"ans":"ReadXml()"},
+  {"q":"Which method writes DataSet contents as XML?","cat":"ADO.NET","opts":["SaveXml()","ExportXml()","WriteXml()","OutputXml()"],"ans":"WriteXml()"},
+  {"q":"Which collection stores DataTables inside a DataSet?","cat":"ADO.NET","opts":["Rows","Tables","Columns","Relations"],"ans":"Tables"},
+  {"q":"Which collection stores relationships in a DataSet?","cat":"ADO.NET","opts":["Tables","Columns","Relations","Rows"],"ans":"Relations"},
+  {"q":"Which property identifies whether a DataRow has been modified?","cat":"ADO.NET","opts":["RowState","State","DataState","Status"],"ans":"RowState"},
+  {"q":"Which DataRowState indicates a newly added row?","cat":"ADO.NET","opts":["Detached","Modified","Added","Deleted"],"ans":"Added"},
+  {"q":"Which DataRowState indicates a deleted row?","cat":"ADO.NET","opts":["Deleted","Removed","Detached","Modified"],"ans":"Deleted"},
+  {"q":"Which DataRowState indicates unchanged data?","cat":"ADO.NET","opts":["Same","Unchanged","Normal","Stable"],"ans":"Unchanged"},
+  {"q":"Which access modifier makes members accessible only within the same class?","cat":"C#.NET","opts":["public","protected","private","internal"],"ans":"private"},
+  {"q":"Which access modifier allows access within the same assembly?","cat":"C#.NET","opts":["private","internal","protected","public"],"ans":"internal"},
+  {"q":"Which access modifier allows access from derived classes?","cat":"C#.NET","opts":["internal","public","protected","private"],"ans":"protected"},
+  {"q":"Which keyword declares a constant value?","cat":"C#.NET","opts":["static","readonly","const","fixed"],"ans":"const"},
+  {"q":"Which keyword allows assignment only during declaration or constructor execution?","cat":"C#.NET","opts":["const","readonly","static","volatile"],"ans":"readonly"},
+  {"q":"Which keyword is used to handle exceptions?","cat":"C#.NET","opts":["error","catch","trap","handle"],"ans":"catch"},
+  {"q":"Which block always executes whether an exception occurs or not?","cat":"C#.NET","opts":["catch","throw","finally","try"],"ans":"finally"},
+  {"q":"Which keyword explicitly throws an exception?","cat":"C#.NET","opts":["raise","exception","throw","catch"],"ans":"throw"},
+  {"q":"Which collection stores key-value pairs?","cat":"C#.NET","opts":["ArrayList","Queue","Hashtable","Stack"],"ans":"Hashtable"},
+  {"q":"Which collection follows FIFO order?","cat":"C#.NET","opts":["Stack","Queue","Hashtable","ArrayList"],"ans":"Queue"},
+  {"q":"Which collection follows LIFO order?","cat":"Web UI","opts":["Queue","Stack","Hashtable","ArrayList"],"ans":"Stack"},
+  {"q":"Which HTML tag is used to create an unordered list?","cat":"Web UI","opts":["<ol>","<list>","<ul>","<li>"],"ans":"<ul>"},
+  {"q":"Which HTML tag is used to create an ordered list?","cat":"Web UI","opts":["<ul>","<ol>","<li>","<list>"],"ans":"<ol>"},
+  {"q":"Which HTML tag is used to create a list item?","cat":"Web UI","opts":["<item>","<ulitem>","<li>","<listitem>"],"ans":"<li>"},
+  {"q":"Which CSS property controls font size?","cat":"Web UI","opts":["text-size","font-size","size","text-font"],"ans":"font-size"},
+  {"q":"Which CSS property makes text bold?","cat":"Web UI","opts":["font-style","text-weight","font-weight","bold"],"ans":"font-weight"},
+  {"q":"Which CSS property changes font family?","cat":"Web UI","opts":["font-name","family","font-family","text-family"],"ans":"font-family"},
+  {"q":"Which JavaScript keyword declares a variable in older versions?","cat":"Web UI","opts":["let","const","var","define"],"ans":"var"},
+  {"q":"Which JavaScript keyword declares a block-scoped variable?","cat":"Web UI","opts":["var","let","define","local"],"ans":"let"},
+  {"q":"Which JavaScript keyword declares a constant?","cat":"Web UI","opts":["static","fixed","constant","const"],"ans":"const"},
+  {"q":"Which namespace contains the base Object class in .NET?","cat":".NET Basics","opts":["System.Collections","System.Runtime","System.Base","System"],"ans":"System"},
+  {"q":"Which class is the ultimate base class for all .NET types?","cat":".NET Basics","opts":["System.BaseObject","System.Root","System.Object","System.Class"],"ans":"System.Object"},
+  {"q":"Which feature allows runtime inspection of assemblies, types, and members?","cat":".NET Basics","opts":["Serialization","Reflection","Remoting","Delegates"],"ans":"Reflection"},
+  {"q":"Reflection can be used to:","cat":".NET Basics","opts":["Load assemblies at runtime","Discover type information","Invoke members dynamically","All of the above"],"ans":"All of the above"},
+  {"q":"What is the output of the following code?\nstruct MyStruct { public int x; public int y; }\nwhen fields are not explicitly initialized.","cat":".NET Basics","opts":["Compiles successfully","Runtime Error","Compile-time Error when instance fields are initialized inline","Always returns 0"],"ans":"Compile-time Error when instance fields are initialized inline"},
+  {"q":"Which method is invoked on a DataAdapter to populate a DataSet?","cat":"ADO.NET","opts":["Bind()","Fill()","FillData()","SetData()"],"ans":"Fill()"},
+  {"q":"For displaying a large amount of read-only data with best performance, which object should be used?","cat":"ADO.NET","opts":["DataReader","DataSet","DataTable","XML Cache"],"ans":"DataReader"},
+  {"q":"Which ADO.NET object establishes a relationship between DataTables?","cat":"ADO.NET","opts":["DataRelation","DataRelationship","DataConstraint","DataKey"],"ans":"DataRelation"},
+  {"q":"Which SqlParameter property is used to receive a stored procedure return value?","cat":"ADO.NET","opts":["Type","Size","Offset","Direction"],"ans":"Direction"},
+  {"q":"What value should Direction be set to for stored procedure return values?","cat":"ADO.NET","opts":["Output","InputOutput","ReturnValue","Input"],"ans":"ReturnValue"},
+  {"q":"Which clause generally appears last in a SELECT statement?","cat":"SQL Server","opts":["WHERE","GROUP BY","ORDER BY","HAVING"],"ans":"ORDER BY"},
+  {"q":"Which keyword removes duplicate rows from query results?","cat":"SQL Server","opts":["UNIQUE","GROUP BY","DISTINCT","FILTER"],"ans":"DISTINCT"},
+  {"q":"OLTP stands for: (2)","cat":"SQL Server","opts":["Online Transmit Processing","Online Transaction Processing","Online Transfer Protocol","Online Transaction Programming"],"ans":"Online Transaction Processing"},
+  {"q":"Which SQL command creates a database role?","cat":"SQL Server","opts":["CREATE ROLE","CREATE GRANT","CREATE AUTHORITY","CREATE AUTHENTICATION"],"ans":"CREATE ROLE"},
+  {"q":"What is a synonym in SQL Server?","cat":"SQL Server","opts":["Duplicate table","Alias for a database object","Temporary table","View"],"ans":"Alias for a database object"},
+  {"q":"Which datatype stores fixed-length non-Unicode character data?","cat":"SQL Server","opts":["VARCHAR","NVARCHAR","CHAR","NCHAR(MAX)"],"ans":"CHAR"},
+  {"q":"Which datatype stores variable-length Unicode character data?","cat":"SQL Server","opts":["VARCHAR","CHAR","NVARCHAR","TEXT"],"ans":"NVARCHAR"},
+  {"q":"What is the main difference between CHAR and NVARCHAR?","cat":"SQL Server","opts":["No difference","CHAR is fixed-length non-Unicode, NVARCHAR is variable-length Unicode","Both are Unicode","Both are fixed-length"],"ans":"CHAR is fixed-length non-Unicode, NVARCHAR is variable-length Unicode"},
+  {"q":"What is the lifespan of items stored in ViewState?","cat":"ASP.NET","opts":["Current Page","Current Session","Current Application","Current Configuration"],"ans":"Current Page"},
+  {"q":"The process in which a page sends data back to itself is called:","cat":"ASP.NET","opts":["PostBack","Session","QueryString","Redirect"],"ans":"PostBack"},
+  {"q":"What is the syntax for creating a Web Server Control?","cat":"ASP.NET","opts":["tagprefix:tagname","tagname:tagvalue","tagprefix:tagvalue","tagname:tagprefix"],"ans":"tagprefix:tagname"},
+  {"q":"Which ASP.NET object is considered thread-safe among the given options?","cat":"ASP.NET","opts":["Session","Application","Cookies","Cache"],"ans":"Cache"},
+  {"q":"Which method must be overridden while creating a custom ASP.NET server control?","cat":"ASP.NET","opts":["Paint()","Control_Build()","Render()","Constructor"],"ans":"Render()"},
+  {"q":"Which property must be enabled to support paging in GridView?","cat":"ASP.NET","opts":["EnablePaging","AllowPaging","GridPaging","PagingEnabled"],"ans":"AllowPaging"},
+  {"q":"If a member is declared as protected internal, who can access it?","cat":"C#.NET","opts":["Only derived classes in same assembly","Only classes in same assembly","Classes in same assembly OR derived classes","Only derived classes"],"ans":"Classes that are both in the same assembly and derived from the class"},
+  {"q":"What is the output?\ntry { Console.WriteLine(\"Level1\"); try { Console.WriteLine(\"Level2\"); goto Exit; } finally { Console.WriteLine(\"Level2 Finished\"); } } finally { Console.WriteLine(\"Level1 Finished\"); }","cat":"C#.NET","opts":["Level1, Level2","Level1, Level2, Level2 Finished","Level1, Level2, Level2 Finished, Level1 Finished","Error"],"ans":"Level1, Level2, Level2 Finished, Level1 Finished"},
+  {"q":"What is the root class of all .NET classes?","cat":"C#.NET","opts":["System.Base","System.Root","System.Object","ObjectBase"],"ans":"System.Object"},
+  {"q":"Which keyword prevents a class from being inherited? (2)","cat":"C#.NET","opts":["abstract","virtual","sealed","readonly"],"ans":"sealed"},
+  {"q":"Which keyword allows a derived class to provide its own implementation of a base method?","cat":"C#.NET","opts":["sealed","virtual","readonly","const"],"ans":"virtual"},
+  {"q":"Which keyword is used to provide a new implementation for a virtual method?","cat":"C#.NET","opts":["override","new","abstract","base"],"ans":"override"},
+  {"q":"Which of the following is NOT an XmlHttpRequest method?","cat":"Web UI","opts":["open()","send()","close()","abort()"],"ans":"close()"},
+  {"q":"To replace an entire frameset with a new page, which target value should be used?","cat":"Web UI","opts":["_top","_window","_title","_top_window"],"ans":"_top"},
+  {"q":"Which JavaScript object refers to the window that opened the current popup?","cat":"Web UI","opts":["window.parent","window.self","window.opener","window.top"],"ans":"window.opener"},
+  {"q":"Which method sends an HTTP request using XmlHttpRequest?","cat":"Web UI","opts":["execute()","send()","request()","invoke()"],"ans":"send()"},
+  {"q":"What does XML stand for?","cat":"XML","opts":["eXtra Modern Link","eXtensible Markup Language","Example Markup Language","X-Markup Language"],"ans":"eXtensible Markup Language","key":"XML"},
+  {"q":"What is the correct syntax of the declaration which defines the XML version?","cat":"XML","opts":["<xml version=\"1.0\" />","<?xml version=\"1.0\"?>","<?xml version=\"1.0\" />","None of the above"],"ans":"<?xml version=\"1.0\"?>","key":"XML"},
+  {"q":"Which statement is true?","cat":"XML","opts":["All the statements are true","All XML elements must have a closing tag","All XML elements must be lower case","All XML documents must have a DTD"],"ans":"All XML elements must have a closing tag","key":"element"},
+  {"q":"Is it easier to process XML than HTML?","cat":"XML","opts":["Yes","No","Sometimes","Cant say"],"ans":"Yes","key":"XML"},
+  {"q":"Kind of Parsers are:","cat":"XML","opts":["well-formed","well-documented","non-validating and validating","none of the above"],"ans":"non-validating and validating","key":"Parser"},
+  {"q":"Well formed XML document means:","cat":"XML","opts":["it contains a root element","it contains an element","it contains one or more elements","must contain one or more elements and root element must contain all other elements"],"ans":"must contain one or more elements and root element must contain all other elements","key":"XML","img":"<svg viewBox=\"0 0 420 170\" xmlns=\"http://www.w3.org/2000/svg\"><defs><marker id=\"arrow\" markerWidth=\"8\" markerHeight=\"8\" refX=\"6\" refY=\"3\" orient=\"auto\"><path d=\"M0,0 L6,3 L0,6 Z\" fill=\"#2b6cb0\"/></marker></defs>\n<rect x=\"150\" y=\"10\" width=\"120\" height=\"35\" rx=\"8\" fill=\"#e8f1fb\" stroke=\"#2b6cb0\" stroke-width=\"2\"/>\n  <text x=\"210\" y=\"27.5\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"700\" fill=\"#1e4a78\" font-family=\"Arial,sans-serif\">&lt;root&gt;</text>\n  \n<rect x=\"60\" y=\"80\" width=\"110\" height=\"35\" rx=\"8\" fill=\"#e8f1fb\" stroke=\"#2b6cb0\" stroke-width=\"2\"/>\n  <text x=\"115\" y=\"97.5\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"700\" fill=\"#1e4a78\" font-family=\"Arial,sans-serif\">&lt;child1&gt;</text>\n  \n<rect x=\"250\" y=\"80\" width=\"110\" height=\"35\" rx=\"8\" fill=\"#e8f1fb\" stroke=\"#2b6cb0\" stroke-width=\"2\"/>\n  <text x=\"305\" y=\"97.5\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"700\" fill=\"#1e4a78\" font-family=\"Arial,sans-serif\">&lt;child2&gt;</text>\n  \n<line x1=\"200\" y1=\"45\" x2=\"115\" y2=\"80\" stroke=\"#2b6cb0\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  \n<line x1=\"200\" y1=\"45\" x2=\"305\" y2=\"80\" stroke=\"#2b6cb0\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  \n<rect x=\"60\" y=\"140\" width=\"110\" height=\"25\" rx=\"8\" fill=\"#e8f1fb\" stroke=\"#2b6cb0\" stroke-width=\"2\"/>\n  <text x=\"115\" y=\"152.5\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"700\" fill=\"#1e4a78\" font-family=\"Arial,sans-serif\">text content</text>\n  \n<line x1=\"115\" y1=\"115\" x2=\"115\" y2=\"140\" stroke=\"#2b6cb0\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  \n</svg>"},
+  {"q":"Comment in XML document is given by:","cat":"XML","opts":["<?-- -->","<!-- --!>","<!-- -->","</-- -- >"],"ans":"<!-- -->","key":"XML"},
+  {"q":"When processing an output XML, \"new line\" symbols:","cat":"XML","opts":["are copied into output as-is (CR+LF for Windows, CR for Mac, LF for Unix)","are converted to a single LF symbol","are converted to a single CR symbol","are discarded"],"ans":"are converted to a single LF symbol","key":"XML"},
+  {"q":"Which of the following strings is a correct XML name?","cat":"XML","opts":["_myElement","my Element","#myElement","None of the above"],"ans":"_myElement","key":"XML"},
+  {"q":"Which of the following XML fragments is well-formed?","cat":"XML","opts":["<?xml?>","<?xml version=\"1.0\"?>","<?xml encoding=\"JIS\"?>","<?xml encoding=\"JIS\" version=\"1.0\"?>"],"ans":"<?xml version=\"1.0\"?>","key":"well-formed"},
+  {"q":"What are the predefined attributes?","cat":"XML","opts":["xml:lang","xml:space","both","none"],"ans":"both","key":"attribute"},
+  {"q":"Valid XML document means (most appropriate):","cat":"XML","opts":["the document has a root element","the document contains at least one or more root elements","the XML document has a DTD associated with it & it complies with that DTD","Each element must nest inside any enclosing element property"],"ans":"the XML document has a DTD associated with it & it complies with that DTD","key":"XML"},
+  {"q":"XML uses the features of:","cat":"XML","opts":["HTML","XHTML","VML","SGML"],"ans":"SGML","key":"XML"},
+  {"q":"What does DTD stand for?","cat":"XML","opts":["Direct Type Definition","Document Type Definition","Do The Dance","Dynamic Type Definition"],"ans":"Document Type Definition","key":"DTD"},
+  {"q":"DTD includes specifications about the markup that can be used within the document. The specifications consist of all EXCEPT:","cat":"XML","opts":["the browser name","the size of element name","entity declarations","element declarations"],"ans":"the browser name","key":"DTD"},
+  {"q":"How can we make attributes have multiple values?","cat":"XML","opts":["<myElement myAttribute=\"value1 value2\"/>","<myElement myAttribute=\"value1\" myAttribute=\"value2\"/>","<myElement myAttribute=\"value1, value2\"/>","attributes cannot have multiple values"],"ans":"attributes cannot have multiple values","key":"attribute"},
+  {"q":"The use of a DTD in XML development is:","cat":"XML","opts":["required when validating XML documents","no longer necessary after the XML editor has been customized","used to direct conversion using an XSLT processor","a good guide to populating templates when generating an XML document automatically"],"ans":"required when validating XML documents","key":"XML"},
+  {"q":"Parameter entities can appear in:","cat":"XML","opts":["xml file","dtd file","xsl file","Both 1 and 2"],"ans":"dtd file","key":"dtd"},
+  {"q":"Attribute standalone=\"no\" should be included in the XML declaration if a document:","cat":"XML","opts":["is linked to an external XSL stylesheet","has external general references","has processing instructions","has an external DTD"],"ans":"has an external DTD","key":"Attribute"},
+  {"q":"You can name a schema using the name attribute like:","cat":"XML","opts":["<schema attribute=\"schema1\">","<schema nameattribute=\"schema1\">","<schema nameattri=\"schema1\">","<schema name=\"schema1\">"],"ans":"<schema name=\"schema1\">","key":"attribute"},
+  {"q":"The default model for complex type in XML schemas for an element is:","cat":"XML","opts":["textOnly","elementOnly","no default type","both 1 & 2"],"ans":"elementOnly","key":"element"},
+  {"q":"Microsoft XML Schema Data Type \"boolean\" has values:","cat":"XML","opts":["True, False","True, False or 1,0","1,0","any number other than zero and zero"],"ans":"1,0","key":"Schema"},
+  {"q":"Simple type built into Schema \"date\" represents a date in:","cat":"XML","opts":["MM-DD-YY","DD-MM-YY","YY-MM-DD","YYYY-MM-DD"],"ans":"YYYY-MM-DD","key":"Schema"},
+  {"q":"In simple type built into XML schema, Boolean type holds:","cat":"XML","opts":["True, False","1,0","both (1) & (2)","True/False and any number except 0"],"ans":"both (1) & (2)","key":"schema"},
+  {"q":"The XML DOM object is a/an:","cat":"XML","opts":["Entity","Entity Reference","Comment Reference","Comment Data"],"ans":"Entity Reference","key":"XML"},
+  {"q":"Attributes of the document interface in DOM that are read-only:","cat":"XML","opts":["doctype only","implementation only","implementation & documentElement only","all (doctype, implementation, documentElement)"],"ans":"all (doctype, implementation, documentElement)","key":"interface"},
+  {"q":"To create a data island we use which HTML element?","cat":"XML","opts":["<XML>","<dataisland>","<Island>","<XMLIsland>"],"ans":"<XML>","key":"element"},
+  {"q":"To bind HTML elements with a DSO, we use which attribute?","cat":"XML","opts":["DATASOURCE","DATAFIELD","DATASRC","DATAFLD"],"ans":"DATASRC","key":"attribute"},
+  {"q":"XML DSOs have a property for the number of pages of data the recordset contains:","cat":"XML","opts":["count","number","pageCount","pageNumber"],"ans":"pageCount","key":"XML"},
+  {"q":"What's so great about XML?","cat":"XML","opts":["Easy data exchange","High speed on network","Only (2) is correct","Both (1) & (2)"],"ans":"Both (1) & (2)","key":"XML"},
+  {"q":"For an XML document to be valid:","cat":"XML","opts":["it needs to be well formed also","it need not be well formed","document needs to be well formed & valid","validity has no relationship with well-formedness"],"ans":"document needs to be well formed & valid","key":"XML"},
+  {"q":"The attribute used to define a new namespace is:","cat":"XML","opts":["XMLNS","XmlNameSpace","Xmlns","XmlNs"],"ans":"Xmlns","key":"namespace"},
+  {"q":"To match the root node in an XSLT transform, the syntax will be:","cat":"XML","opts":["<xsl:template match=\"Document\">","<xsl:template match=\"Root\">","<xsl:template match=\"RootNode\">","<xsl:template match=\"/\">"],"ans":"<xsl:template match=\"/\">","key":"XSLT"},
+  {"q":"To match a specific XML element child like <NAME> of parent element <PLANET>, the syntax will be:","cat":"XML","opts":["<xsl:template match=\"PLANET_NAME\">","<xsl:template match=\"PLANET/NAME\">","<xsl:template match=\"/NAME\">","<xsl:template match=\"//\">"],"ans":"<xsl:template match=\"PLANET/NAME\">","key":"element"},
+  {"q":"PI in the XML specification stands for:","cat":"XML","opts":["3.14","priceless instruction","processing instruction","polymorphic inheritance"],"ans":"processing instruction","key":"XML"},
+  {"q":"A validating XML application should be used when:","cat":"XML","opts":["the design demands that all elements use start and end tags","missing or out-of-place elements could cause application errors","attribute values cannot refer to external entity references","high performance is an important architectural constraint"],"ans":"missing or out-of-place elements could cause application errors","key":"XML"},
+  {"q":"A DSO operates like:","cat":"XML","opts":["a data simulation object at server side","a dynamic source object at client side","a data source object at client side","a data simulation object at client side"],"ans":"a data source object at client side","key":"a data"},
+  {"q":"The XSL formatting object used to format a list is:","cat":"XML","opts":["list-block","list-item","list-item-body","list-item-label"],"ans":"list-block","key":"list-block"},
+  {"q":"The XSL formatting object which holds the content of the table body is:","cat":"XML","opts":["table","table-body","table-content","table-footer"],"ans":"table-body","key":"table-body"},
+  {"q":"The XSL formatting object used to hold the content of the label of a list item is:","cat":"XML","opts":["list-block","list item","list-item-body","list-item-label"],"ans":"list-item-label","key":"list-item-label"},
+  {"q":"The XSL formatting object used to hold the contents of the body of a list item is:","cat":"XML","opts":["list-block","list item","list-item-body","list-item-label"],"ans":"list-item-body","key":"list-item-body"},
+  {"q":"XSL has a formatting object called \"block\", which:","cat":"XML","opts":["is not supported in XSL","generates a block level reference area","creates a display block","groups global declarations for a style sheet"],"ans":"generates a block level reference area","key":"block level reference area"},
+  {"q":"The syntax for writing default values for an element is:","cat":"XML","opts":["<xsd:element name=\"max\" type=\"xsd:integer\" value=\"100\"/>","<xsd:element name=\"max\" type=\"xsd:integer\" fixValue=\"100\"/>","<xsd:element name=\"max\" type=\"xsd:integer\" default=\"100\"/>","<xsd:element name=\"max\" type=\"xsd:integer\" defaultval=\"100\"/>"],"ans":"<xsd:element name=\"max\" type=\"xsd:integer\" default=\"100\"/>","key":"element"},
+  {"q":"To use XSLT in an XML system, the input and output of the XSLT processor must be:","cat":"XML","opts":["unparsed XML documents","a hierarchical tree representing an XML document","called from a web agent","given the DTD as well as the XML document instance"],"ans":"a hierarchical tree representing an XML document","key":"XSLT"},
+  {"q":"What is the role of the XPath language in XSL processing?","cat":"XML","opts":["identifies the order of processing as XSL is processed","identifies locations in XML data to be transformed in the source tree and generated in the output tree","identifies the path followed in executing XSL translation prescriptions","specifies which XSL transform files are used in translating XML"],"ans":"identifies locations in XML data to be transformed in the source tree and generated in the output tree","key":"XPath"},
+  {"q":"Which statement correctly describes the capabilities of the XSLT language?","cat":"XML","opts":["XSLT uses the DTD to determine how XML documents will be translated","XSLT translates hierarchical trees into non-hierarchical formats","XSLT specifies how a hierarchical tree may be translated into another hierarchical tree, also representable by an XML document","XSLT specifies the formatting style used to render an XML document"],"ans":"XSLT specifies how a hierarchical tree may be translated into another hierarchical tree, also representable by an XML document","key":"XSLT"},
+  {"q":"XSLT processors accept as input:","cat":"XML","opts":["an XML conforming document file and an XSLT specification file","only an XML document","only an XSLT specification","either an XML document or an XSLT specification"],"ans":"an XML conforming document file and an XSLT specification file","key":"XSLT","img":"<svg viewBox=\"0 0 420 150\" xmlns=\"http://www.w3.org/2000/svg\"><defs><marker id=\"arrow\" markerWidth=\"8\" markerHeight=\"8\" refX=\"6\" refY=\"3\" orient=\"auto\"><path d=\"M0,0 L6,3 L0,6 Z\" fill=\"#2b6cb0\"/></marker></defs>\n<rect x=\"10\" y=\"50\" width=\"110\" height=\"50\" rx=\"8\" fill=\"#e8f1fb\" stroke=\"#2b6cb0\" stroke-width=\"2\"/>\n  <text x=\"65\" y=\"75\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"700\" fill=\"#1e4a78\" font-family=\"Arial,sans-serif\">Source XML</text>\n  \n<rect x=\"155\" y=\"50\" width=\"120\" height=\"50\" rx=\"8\" fill=\"#e8f1fb\" stroke=\"#2b6cb0\" stroke-width=\"2\"/>\n  <text x=\"215\" y=\"68\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"700\" fill=\"#1e4a78\" font-family=\"Arial,sans-serif\">XSLT Processor</text>\n  <text x=\"215\" y=\"87\" text-anchor=\"middle\" font-size=\"10\" fill=\"#4a6f96\" font-family=\"Arial,sans-serif\">+ stylesheet</text>\n<rect x=\"310\" y=\"50\" width=\"100\" height=\"50\" rx=\"8\" fill=\"#e8f1fb\" stroke=\"#2b6cb0\" stroke-width=\"2\"/>\n  <text x=\"360\" y=\"75\" text-anchor=\"middle\" font-size=\"13\" font-weight=\"700\" fill=\"#1e4a78\" font-family=\"Arial,sans-serif\">Result Tree</text>\n  \n<line x1=\"120\" y1=\"75\" x2=\"155\" y2=\"75\" stroke=\"#2b6cb0\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  \n<line x1=\"275\" y1=\"75\" x2=\"310\" y2=\"75\" stroke=\"#2b6cb0\" stroke-width=\"2\" marker-end=\"url(#arrow)\"/>\n  \n</svg>"},
+  {"q":"To match elements with id (if id is \"change\") in an XSLT stylesheet:","cat":"XML","opts":["<xsl:template match=\"id('change')\">","<xsl:template match=\"(change)\">","<xsl:template match=\"change\">","<xsl:template match-id=\"Change\">"],"ans":"<xsl:template match=\"id('change')\">","key":"XSLT stylesheet"},
+  {"q":"To match the text node (in XSLT), the syntax will be:","cat":"XML","opts":["<xsl:template match=\"text\">","<xsl:template match-text=\"text\">","<xsl:template match=text( )>","<xsl:template match=\"text( )\">"],"ans":"<xsl:template match=\"text( )\">","key":"XSLT"},
+  {"q":"An element declaration specifies:","cat":"XML","opts":["a single markup element","markup elements","markup data","the document data"],"ans":"a single markup element","key":"element"},
+  {"q":"Which of the following specifies that the order and content of \"membership\" is not important?","cat":"XML","opts":["<!ELEMENT membership NORULE>","<!ELEMENT membership EMPTY>","<!ELEMENT membership ALL>","<!ELEMENT membership ANY>"],"ans":"<!ELEMENT membership ANY>","key":"ELEMENT"},
+  {"q":"Which of the following is used to specify the attribute list of an element?","cat":"XML","opts":["ATTLIST","?ATTLIST","!ATTLIST","#ATTLIST"],"ans":"!ATTLIST","key":"attribute"},
+  {"q":"Which of the following instructs the browser which stylesheet to use?","cat":"XML","opts":["<xml-stylesheet type=\"text/xsl\" href=\"cd.xsl\">","<xml-stylesheet type=\"text/xsl\" xsl=\"cd.xsl\">","<?xml-stylesheet type=\"text/xsl\" href=\"cd.xsl\"?>","<?xml-stylesheet type=\"text/xsl\" xsl=\"cd.xsl\"?>"],"ans":"<?xml-stylesheet type=\"text/xsl\" href=\"cd.xsl\"?>","key":"xml"},
+  {"q":"Which of the following XSLT patterns is used to match any descendant nodes?","cat":"XML","opts":["/","//",".",".."],"ans":"//","key":"XSLT"},
+  {"q":"Which of the following XSLT patterns is used to match the parent node?","cat":"XML","opts":["/","//",".",".."],"ans":"..","key":"XSLT"},
+  {"q":"Which of the following is a valid XSLT iteration command?","cat":"XML","opts":["for","for-all","for-each","in-turn"],"ans":"for-each","key":"XSLT"},
+  {"q":"What is an advantage of XML compared to HTML?","cat":"XML","opts":["XML works on more platforms","XML is suited to using Web pages as front ends to databases","XML was designed for portable phones","XML is simpler to learn than HTML"],"ans":"XML is suited to using Web pages as front ends to databases","key":"XML"},
+  {"q":"Which of the following statements is true?","cat":"XML","opts":["XML is a direct subset of SGML","SGML is an application of HTML","XML is a kind of dynamic HTML","XHTML is XML rewritten in HTML"],"ans":"XML is a direct subset of SGML","key":"SGML"},
+  {"q":"What is a qualified name?","cat":"XML","opts":["Any name conforming to the XML Names specification","A name having a prefix and local name separated by a colon","A name applying only to qualified elements and attributes","None of the above"],"ans":"A name having a prefix and local name separated by a colon","key":"qualified name"},
+  {"q":"What is a NCName?","cat":"XML","opts":["A Non-Common Name","A Non-Conforming Name","A Non-Colonized Name","None of the above"],"ans":"A Non-Colonized Name","key":"NCName"},
+  {"q":"What is the default namespace?","cat":"XML","opts":["The namespace used by default when no namespace is declared","The namespace used when two or more namespaces are referenced","A namespace referenced with the xmlns attribute, but without a prefix","None of the above"],"ans":"A namespace referenced with the xmlns attribute, but without a prefix","key":"namespace"},
+  {"q":"What is an XML namespace?","cat":"XML","opts":["A set of names applied to specific spaces within a document, such as head/body","A set of names representing a specific XML vocabulary","A set of names for XML documents pertaining to a particular vocabulary","None of the above"],"ans":"A set of names representing a specific XML vocabulary","key":"namespace"},
+  {"q":"Date datatype format used in XML is:","cat":"XML","opts":["DD-MM-YYYY","YYYY-MM-DD","MM-DD-YYYY","YYYY/MM/DD"],"ans":"YYYY-MM-DD","key":"XML"},
+  {"q":"Can an existing XML document be modified using a parser?","cat":"XML","opts":["Yes","No","Only DOM parsers can","Only SAX parsers can"],"ans":"Yes","key":"parser"},
+  {"q":"Which one of the following is not a valid parser?","cat":"XML","opts":["MRM","BLOB","XMLNSC","JMS"],"ans":"JMS","key":"parser"},
+  {"q":"____ is an interface for processing XML documents using events.","cat":"XML","opts":["SAX","XSLT","XSL","Both B and C"],"ans":"SAX","key":"interface"},
+  {"q":"Can XML documents have empty tags?","cat":"XML","opts":["True","False"],"ans":"True","key":"XML"},
+  {"q":"CDATA section syntax is:","cat":"XML","opts":["Starts with <![CDATA[ and ends with ]]>","Starts with <!CDATA[ and ends with ]>","Starts with <?CDATA[ and ends with ]?>","Starts with <CDATA[[ and ends with ]]>"],"ans":"Starts with <![CDATA[ and ends with ]]>","key":"CDATA"},
+  {"q":"A message of customer record needs an element ORDER to occur any number of times without limit. What value constraint do you set?","cat":"XML","opts":["Minoccurs = 0, Maxoccurs = 1","Minoccurs = 1, Maxoccurs = MAX","Minoccurs = 0, Maxoccurs = MAX","Minoccurs = 1, Maxoccurs = 1"],"ans":"Minoccurs = 1, Maxoccurs = MAX","key":"element"},
+  {"q":"Default value for minOccurs in an XSD is:","cat":"XML","opts":["0","1","Undefined","-1"],"ans":"1","key":"minOccurs"},
+  {"q":"What is the correct outcome of executing: OutputRoot.XMLNSC.Msg.Field1.Field2 = NULL;","cat":"XML","opts":["Value of the field is set to null","Field2 is deleted","Not a valid ESQL statement","None"],"ans":"Field2 is deleted","key":"XMLNSC"}
+];
+
+// ===== LEVEL / PRACTICE / EXAM STATE =====
+let mode = 'practice';
+let currentLevel = 1;
+let activeLevelNum = 1;
+let activeQs = [];
+let currentIdx = 0;
+let levelHistory = {};
+let seenSet = new Set();
+
+function escapeHtml(text){
+  return String(text).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){
+    let j;
+    try{
+      const buf=new Uint32Array(1);
+      crypto.getRandomValues(buf);
+      j=buf[0]%(i+1);
+    }catch(e){ j=Math.floor(Math.random()*(i+1)); }
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const sb=document.getElementById('statusBar');
+  sb.style.display=(id==='quizScreen')?'flex':'none';
+}
+
+function setMode(m){
+  mode=m;
+  document.getElementById('btnPractice').classList.toggle('selected',m==='practice');
+  document.getElementById('btnExam').classList.toggle('selected',m==='exam');
+}
+
+function levelSize(n){
+  if(n===1) return 15;
+  if(n===2) return 30;
+  return 30+(n-2)*10;
+}
+
+/*
+ * Highlight a PHRASE, not just one word.
+ * If a key exists, it is expanded by nearby words.
+ * For this .NET file (where questions have no key field), a useful
+ * question phrase is automatically selected from the question text.
+ */
+/* Highlight a meaningful PHRASE, never only a single keyword. */
+function getHighlightPhrase(text, key){
+  const clean=String(text).replace(/\s+/g,' ').trim();
+  if(!clean) return '';
+
+  if(key){
+    const lower=clean.toLowerCase();
+    const k=String(key).replace(/\s+/g,' ').trim();
+    const kl=k.toLowerCase();
+    let pos=lower.indexOf(kl);
+    if(pos!==-1){
+      // Use the occurrence closest to the main idea of the question.
+      const before=clean.slice(0,pos).trim().split(/\s+/).filter(Boolean);
+      const after=clean.slice(pos+k.length).trim().split(/\s+/).filter(Boolean);
+      const left=before.slice(Math.max(0,before.length-2));
+      const right=after.slice(0,3);
+      return [...left,k,...right].join(' ').replace(/[?]$/,'');
+    }
+  }
+
+  // Fallback: first meaningful phrase after the question opener.
+  let s=clean.replace(/^(which of the following|which of these|what is|what are|what does|what do|what kind of|what type of|which|can|does|do|is|are|when|where|how|why|select|determine|given the following code)\s*/i,'').trim();
+  s=s.replace(/^(the|a|an)\s+/i,'');
+  return s.split(/\s+/).slice(0,6).join(' ').replace(/[?]$/,'');
+}
+
+function highlightPhrase(text,key){
+  const esc=escapeHtml(text);
+  const phrase=getHighlightPhrase(text,key);
+  if(!phrase) return esc;
+  const ep=escapeHtml(phrase);
+  const i=esc.toLowerCase().indexOf(ep.toLowerCase());
+  if(i===-1) return esc;
+  return esc.slice(0,i)+'<mark class="hl-yellow">'+esc.slice(i,i+ep.length)+'</mark>'+esc.slice(i+ep.length);
+}
+
+function highlightAnswer(text){
+  return '<strong>'+escapeHtml(text)+'</strong>';
+}
+
+function renderHome(){
+  const list=document.getElementById('levelList');
+  let html='';
+  const maxShown=currentLevel+1;
+
+  for(let n=1;n<=maxShown;n++){
+    const size=levelSize(n);
+    const result=levelHistory[n];
+    let state='locked';
+    let badge='<span class="level-badge locked">🔒 Locked</span>';
+
+    if(n<currentLevel || (n===currentLevel && result)){
+      if(result){
+        state=result.passed?'passed':'failed';
+        badge=result.passed
+          ? '<span class="level-badge passed">✓ Passed '+result.percent+'%</span>'
+          : '<span class="level-badge failed">✗ '+result.percent+'% - Retry</span>';
+      }
+    }
+    if(n===currentLevel){
+      state='current';
+      if(!result) badge='<span class="level-badge current">▶ Play Now</span>';
+    }
+    if(n>currentLevel){
+      state='locked';
+      badge='<span class="level-badge locked">🔒 Locked</span>';
+    }
+
+    html+='<div class="level-item '+state+'">'
+      +'<div><div class="level-main">Level '+n+'</div>'
+      +'<div class="level-sub">'+size+' questions'+(n>1&&n<=currentLevel?' · includes revision questions':'')+'</div></div>'
+      +badge+'</div>';
+  }
+
+  list.innerHTML=html;
+  const btn=document.getElementById('playLevelBtn');
+  const r=levelHistory[currentLevel];
+  btn.textContent=(r&&!r.passed)?'Retry Level '+currentLevel:'Start Level '+currentLevel;
+}
+
+function buildLevel(n){
+  const size=levelSize(n);
+  const priorityCats=['API Connect','IIB/ESQL'];
+  // XML stays out of the early levels; it starts from Level 4 and appears progressively later.
+  const eligibleNew=QUESTIONS.filter(q=>!seenSet.has(q.q) && (n>=4 || q.cat!=='XML'));
+  const priorityNew=eligibleNew.filter(q=>priorityCats.includes(q.cat));
+  const otherNew=eligibleNew.filter(q=>!priorityCats.includes(q.cat));
+
+  let reviewCount=n===1?0:Math.min(Math.round(size*0.3),seenSet.size);
+  let newCount=size-reviewCount;
+  let newPool;
+
+  if(n<=3){
+    // First three levels deliberately focus on API Connect + IIB/ESQL before the general .NET bank.
+    newPool=priorityNew.concat(otherNew);
+  }else{
+    newPool=otherNew.concat(priorityNew);
+  }
+  shuffle(newPool);
+
+  // For Levels 1-3, take priority questions first so these subjects appear at the start.
+  if(n<=3){
+    const p=priorityNew.slice();
+    shuffle(p);
+    const o=otherNew.slice();
+    shuffle(o);
+    newPool=p.concat(o);
+  }
+
+  const newPicked=newPool.slice(0,newCount);
+  let reviewPool=QUESTIONS.filter(q=>seenSet.has(q.q)&&!newPicked.some(x=>x.q===q.q));
+  // Keep XML revision out until Level 4 as well.
+  if(n<4) reviewPool=reviewPool.filter(q=>q.cat!=='XML');
+  shuffle(reviewPool);
+  const reviewPicked=reviewPool.slice(0,reviewCount);
+
+  let combined=newPicked.map(q=>({q,tag:'new'}))
+    .concat(reviewPicked.map(q=>({q,tag:'review'})));
+
+  while(combined.length<size&&combined.length<QUESTIONS.length){
+    const pool=n<4 ? QUESTIONS.filter(q=>q.cat!=='XML') : QUESTIONS;
+    const candidate=pool[Math.floor(Math.random()*pool.length)];
+    if(!combined.find(c=>c.q.q===candidate.q)) combined.push({q:candidate,tag:'review'});
+  }
+
+  shuffle(combined);
+  newPicked.forEach(q=>seenSet.add(q.q));
+
+  return combined.map(item=>{
+    const src=item.q;
+    const opts=shuffle(src.opts.slice());
+    return {
+      qText:src.q,
+      cat:src.cat,
+      key:src.key||null,
+      opts,
+      ans:src.ans,
+      tag:item.tag,
+      selected:null
+    };
+  });
+}
+
+function playCurrentLevel(){
+  startLevel(currentLevel);
+}
+
+function startLevel(n){
+  activeLevelNum=n;
+  activeQs=buildLevel(n);
+  currentIdx=0;
+  showScreen('quizScreen');
+  renderQuestion();
+}
+
+function updateStatusBar(){
+  const answered=activeQs.filter(q=>q.selected!==null).length;
+  const correct=activeQs.filter(q=>q.selected!==null&&q.opts[q.selected]===q.ans).length;
+  const wrong=answered-correct;
+  const sb=document.getElementById('statusBar');
+
+  if(mode==='practice'){
+    sb.innerHTML='<div class="stat-item"><span class="stat-dot dot-green"></span>Correct: <span>'+correct+'</span></div>'
+      +'<div class="stat-item"><span class="stat-dot dot-red"></span>Wrong: <span>'+wrong+'</span></div>'
+      +'<div class="stat-item"><span class="stat-dot dot-blue"></span>Answered: <span>'+answered+'</span></div>';
+  }else{
+    sb.innerHTML='<div class="stat-item"><span class="stat-dot dot-blue"></span>Answered: <span>'+answered+'</span></div>';
+  }
+}
+
+function renderQuestion(){
+  const item=activeQs[currentIdx];
+  updateStatusBar();
+
+  document.getElementById('qCounter').textContent='Q '+(currentIdx+1)+' / '+activeQs.length;
+  document.getElementById('progressBar').style.width=((currentIdx+1)/activeQs.length*100)+'%';
+  document.getElementById('categoryTag').textContent=item.cat;
+
+  // Phrase highlighting is shown after answering, just like the original index logic.
+  document.getElementById('qText').innerHTML=
+    (item.selected!==null) ? highlightPhrase(item.qText,item.key) : escapeHtml(item.qText);
+
+  document.getElementById('feedbackMsg').innerHTML='';
+
+  const list=document.getElementById('optionsList');
+  list.innerHTML='';
+
+  item.opts.forEach((opt,i)=>{
+    const li=document.createElement('li');
+    li.className='option-item';
+    li.id='opt_'+i;
+    const rid='r_'+currentIdx+'_'+i;
+
+    li.innerHTML='<label for="'+rid+'"><input type="radio" name="opt" id="'+rid+'" value="'+escapeHtml(opt)+'"> '+escapeHtml(opt)+'</label>';
+    list.appendChild(li);
+
+    if(mode==='practice'&&item.selected!==null){
+      li.classList.add('disabled');
+      if(opt===item.ans) li.classList.add('correct');
+      else if(i===item.selected) li.classList.add('incorrect');
+    }else if(item.selected===i){
+      li.classList.add('selected');
+    }
+  });
+
+  if(item.selected!==null){
+    const radios=list.querySelectorAll('input[type=radio]');
+    if(radios[item.selected]) radios[item.selected].checked=true;
+    radios.forEach(r=>r.disabled=true);
+
+    const isCorrect=item.opts[item.selected]===item.ans;
+    document.getElementById('feedbackMsg').innerHTML=
+      '<div class="feedback-msg '+(isCorrect?'feedback-correct':'feedback-incorrect')+'">'
+      +(isCorrect?'✓ Correct!':'✗ Incorrect.')
+      +' Correct answer: '+highlightAnswer(item.ans)+'</div>';
+  }else{
+    list.querySelectorAll('input[type=radio]').forEach((r,i)=>{
+      r.addEventListener('change',()=>selectOption(i));
+    });
+  }
+
+  document.getElementById('btnPrev').classList.toggle('btn-disabled',currentIdx===0);
+  document.getElementById('btnNext').style.display=currentIdx===activeQs.length-1?'none':'inline-block';
+  document.getElementById('btnSubmit').style.display='inline-block';
+}
+
+function selectOption(i){
+  const item=activeQs[currentIdx];
+  if(mode==='practice'&&item.selected!==null) return;
+  if(item.selected!==null) return;
+  item.selected=i;
+  renderQuestion();
+}
+
+function navigate(dir){
+  if(dir===-1&&currentIdx===0) return;
+  if(dir===1&&currentIdx===activeQs.length-1) return;
+  currentIdx+=dir;
+  renderQuestion();
+}
+
+function confirmStop(){
+  document.getElementById('overlayStop').style.display='flex';
+}
+
+function doStop(){
+  closeOverlay('overlayStop');
+  goHome();
+}
+
+function confirmSubmit(){
+  const total=activeQs.length;
+  const answered=activeQs.filter(q=>q.selected!==null).length;
+  const unanswered=total-answered;
+  let msg='You have answered <strong>'+answered+'</strong> out of <strong>'+total+'</strong> questions.';
+  if(unanswered>0) msg+=' <strong>'+unanswered+'</strong> question'+(unanswered>1?'s':'')+' will be marked as unanswered.';
+  msg+=' Do you want to submit now?';
+  document.getElementById('submitMsg').innerHTML=msg;
+  document.getElementById('overlaySubmit').style.display='flex';
+}
+
+function doSubmit(){
+  closeOverlay('overlaySubmit');
+  submitLevel();
+}
+
+function closeOverlay(id){
+  document.getElementById(id).style.display='none';
+}
+
+function submitLevel(){
+  const total=activeQs.length;
+  const answered=activeQs.filter(q=>q.selected!==null).length;
+  let correct=0;
+  activeQs.forEach(q=>{
+    if(q.selected!==null&&q.opts[q.selected]===q.ans) correct++;
+  });
+
+  const percent=Math.round(correct/total*100);
+  const passed=percent>=80;
+
+  levelHistory[activeLevelNum]={
+    correct,total,percent,passed,
+    unanswered:total-answered
+  };
+
+  if(passed&&activeLevelNum===currentLevel) currentLevel=activeLevelNum+1;
+  showLevelResultScreen();
+}
+
+function showLevelResultScreen(){
+  const n=activeLevelNum;
+  const r=levelHistory[n];
+
+  document.getElementById('lrTitle').textContent='Level '+n+' Complete';
+  document.getElementById('lrPercent').textContent=r.percent+'%';
+  document.getElementById('lrScore').textContent=r.percent+'%';
+  document.getElementById('lrSubtext').textContent=r.correct+' / '+r.total+' correct';
+  document.getElementById('lrCorrect').textContent=r.correct;
+  document.getElementById('lrWrong').textContent=r.total-r.correct-r.unanswered;
+  document.getElementById('lrUnanswered').textContent=r.unanswered;
+
+  const banner=document.getElementById('lrBanner');
+  if(r.passed){
+    banner.style.color='#276749';
+    banner.textContent='🎉 Level Passed! Level '+(n+1)+' ('+levelSize(n+1)+' questions) is now unlocked.';
+  }else{
+    banner.style.color='#c53030';
+    banner.textContent='You needed 80% to pass. Review the answers and retry the level.';
+  }
+
+  const primary=document.getElementById('lrPrimaryBtn');
+  if(r.passed){
+    primary.textContent='Continue to Level '+(n+1);
+    primary.onclick=()=>startLevel(n+1);
+  }else{
+    primary.textContent='Retry Level '+n;
+    primary.onclick=()=>startLevel(n);
+  }
+
+  showScreen('levelResultScreen');
+}
+
+function renderReview(){
+  const list=document.getElementById('reviewList');
+  let html='';
+
+  activeQs.forEach((item,idx)=>{
+    const wasAnswered=item.selected!==null;
+    const isCorrect=wasAnswered&&item.opts[item.selected]===item.ans;
+    const state=!wasAnswered?'unanswered':(isCorrect?'right':'wrong');
+
+    html+='<div class="review-item '+state+'">';
+    html+='<div class="category-tag">'+escapeHtml(item.cat)+' · Q'+(idx+1)+(item.tag==='review'?' · Revision':'')+'</div>';
+    html+='<div class="review-q">'+highlightPhrase(item.qText,item.key)+'</div>';
+    html+='<div class="review-answer">Your answer: <b>'
+      +(wasAnswered?escapeHtml(item.opts[item.selected]):'<em>Not answered</em>')
+      +'</b> '+(wasAnswered?(isCorrect?'✓':'✗'):'')+'</div>';
+    html+='<div class="review-answer">Correct answer: '+highlightAnswer(item.ans)+'</div>';
+    html+='</div>';
+  });
+
+  list.innerHTML=html;
+  showScreen('reviewScreen');
+}
+
+function goHome(){
+  showScreen('levelHomeScreen');
+  renderHome();
+}
+
+// Keep the original Home buttons working: they now open the level system.
+document.getElementById('totalCount').textContent=QUESTIONS.length+' questions in total';
+showScreen('levelHomeScreen');
+renderHome();
+</script>
+
+</body>
+</html>
